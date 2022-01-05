@@ -1,5 +1,8 @@
 import numpy as np
 import ot
+from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+from scipy.spatial import distance_matrix
+import random
 
 
 def gwloss_partial(C1, C2, T, loss_fun='square_loss'):
@@ -86,6 +89,18 @@ def fgwgrad_partial(alpha, M, C1, C2, T, loss_fun='square_loss'):
     return (1 - alpha) * M + alpha * gwgrad_partial(C1, C2, T, loss_fun)
 
 
+def initialization(M, p, q, m):
+    index_list = list(range(len(p)))
+    random.shuffle(index_list)
+    pi = np.zeros((len(p), len(q)))
+    while m > 0:
+        source_idx = index_list.pop()
+        dest_idx = np.argmin(M[source_idx])
+        pi[source_idx][dest_idx] = min([p[source_idx], q[dest_idx], m])
+        m -= pi[source_idx][dest_idx]
+    return pi
+
+
 def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, loss_fun='square_loss', armijo=False, log=False, verbose=False, numItermax=1000, tol=1e-7, stopThr=1e-9, stopThr2=1e-9):
     if m is None:
         m = np.min((np.sum(p), np.sum(q)))
@@ -97,7 +112,8 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
                          " equal to min(|p|_1, |q|_1).")
 
     if G0 is None:
-        G0 = np.outer(p, q)
+        G0 = initialization(M, p, q, m)
+        # G0 = np.outer(p, q)
 
     nb_dummies = 1
     dim_G_extended = (len(p) + nb_dummies, len(q) + nb_dummies)
@@ -115,7 +131,8 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
             'It.', 'Loss', 'Relative loss', 'Absolute loss') + '\n' + '-' * 48)
         print('{:5d}|{:8e}|{:8e}|{:8e}'.format(cpt, f_val, 0, 0))
 
-    while err > tol and cpt < numItermax:
+    # while err > tol and cpt < numItermax:
+    while cpt < numItermax:
         Gprev = np.copy(G0)
         old_fval = f_val
 
@@ -125,8 +142,9 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         gradF_emd[-nb_dummies:, -nb_dummies:] = np.max(gradF) * 1e2
         gradF_emd = np.asarray(gradF_emd, dtype=np.float64)
 
-        Gc, logemd = ot.lp.emd(p_extended, q_extended, gradF_emd, log=True)
+        Gc, logemd = ot.lp.emd(p_extended, q_extended, gradF_emd, numItermax=1000000, log=True)
         if logemd['warning'] is not None:
+            # print("!!!!!!" + logemd['warning'])
             raise ValueError("Error in the EMD resolution: try to increase the"
                              " number of dummy points")
 
@@ -147,7 +165,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
 
         if not armijo:
             a = alpha * gwloss_partial(C1, C2, deltaG, loss_fun)
-            b = (1 - alpha) * wloss(M, deltaG) + 2 * alpha * np.sum(gwgrad_partial(C1, C2, deltaG, loss_fun) * 0.5, Gprev)
+            b = (1 - alpha) * wloss(M, deltaG) + 2 * alpha * np.sum(gwgrad_partial(C1, C2, deltaG, loss_fun) * 0.5 * Gprev)
             # c = (1 - alpha) * wloss(M, Gprev) + alpha * gwloss_partial(C1, C2, Gprev, loss_fun)
             c = fgwloss_partial(alpha, M, C1, C2, Gprev, loss_fun)
 
@@ -178,9 +196,9 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         if log:
             log['loss'].append(f_val)
         if verbose:
-            if cpt % 20 == 0:
-                print('{:5s}|{:12s}|{:8s}|{:8s}'.format(
-                    'It.', 'Loss', 'Relative loss', 'Absolute loss') + '\n' + '-' * 48)
+            # if cpt % 20 == 0:
+            #     print('{:5s}|{:12s}|{:8s}|{:8s}'.format(
+            #         'It.', 'Loss', 'Relative loss', 'Absolute loss') + '\n' + '-' * 48)
             print('{:5d}|{:8e}|{:8e}|{:8e}'.format(cpt, f_val, relative_delta_fval, abs_delta_fval))
 
     if log:
@@ -190,7 +208,70 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         return G0[:len(p), :len(q)]
 
 
+def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
+                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, **kwargs):
+    """
+    Calculates and returns optimal alignment of two slices.
 
+    param: sliceA - AnnData object
+    param: sliceB - AnnData object
+    param: alpha - Alignment tuning parameter. Note: 0 ≤ alpha ≤ 1
+    param: dissimilarity - Expression dissimilarity measure: 'kl' or 'euclidean'
+    param: use_rep - If none, uses slice.X to calculate dissimilarity between spots, otherwise uses the representation given by slice.obsm[use_rep]
+    param: G_init - initial mapping to be used in FGW-OT, otherwise default is uniform mapping
+    param: a_distribution - distribution of sliceA spots (1-d numpy array), otherwise default is uniform
+    param: b_distribution - distribution of sliceB spots (1-d numpy array), otherwise default is uniform
+    param: numItermax - max number of iterations during FGW-OT
+    param: norm - scales spatial distances such that neighboring spots are at distance 1 if True, otherwise spatial distances remain unchanged
+    param: return_obj - returns objective function output of FGW-OT if True, nothing if False
+    param: verbose - FGW-OT is verbose if True, nothing if False
+
+    return: pi - alignment of spots
+    return: log['fgw_dist'] - objective function output of FGW-OT
+    """
+
+    # subset for common genes
+    common_genes = intersect(sliceA.var.index, sliceB.var.index)
+    sliceA = sliceA[:, common_genes]
+    sliceB = sliceB[:, common_genes]
+    # print('Filtered all slices for common genes. There are ' + str(len(common_genes)) + ' common genes.')
+
+    # Calculate spatial distances
+    D_A = distance_matrix(sliceA.obsm['spatial'], sliceA.obsm['spatial'])
+    D_B = distance_matrix(sliceB.obsm['spatial'], sliceB.obsm['spatial'])
+
+    # Calculate expression dissimilarity
+    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+    if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
+        M = distance_matrix(A_X, B_X)
+    else:
+        s_A = A_X + 0.01
+        s_B = B_X + 0.01
+        M = kl_divergence(s_A, s_B)
+
+    # init distributions
+    if a_distribution is None:
+        a = np.ones((sliceA.shape[0],)) / sliceA.shape[0]
+    else:
+        a = a_distribution
+
+    if b_distribution is None:
+        b = np.ones((sliceB.shape[0],)) / sliceB.shape[0]
+    else:
+        b = b_distribution
+
+    if norm:
+        D_A /= D_A[D_A > 0].min().min()
+        D_B /= D_B[D_B > 0].min().min()
+
+    # Run OT
+    # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
+    #                                                   numItermax=numItermax, verbose=verbose)
+    pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
+
+    if return_obj:
+        return pi, log['partial_fgw_cost']
+    return pi
 
 
 

@@ -6,6 +6,40 @@ from scipy.spatial import distance_matrix
 import scipy
 from numpy import linalg as LA
 from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+import random
+
+
+def initialization(M, p, q):
+    p_remain = np.copy(p)
+    q_remain = np.copy(q)
+    source_index_list = list(range(len(p)))
+    random.shuffle(source_index_list)
+    pi = np.zeros((len(p), len(q)))
+    for source_index in source_index_list:
+        while p_remain[source_index] > 0:
+            available_dest_indices = np.argwhere(q_remain > 0)
+            best_cost = float("inf")
+            best_dest_index = None
+            for dest_index in available_dest_indices:
+                cost = M[source_index][dest_index]
+                if cost < best_cost:
+                    best_cost = cost
+                    best_dest_index = dest_index
+            if p_remain[source_index] < q_remain[best_dest_index]:
+                pi[source_index][best_dest_index] = p_remain[source_index]
+                q_remain[best_dest_index] -= p_remain[source_index]
+                p_remain[source_index] -= p_remain[source_index]
+            else:
+                pi[source_index][best_dest_index] = q_remain[best_dest_index]
+                p_remain[source_index] -= q_remain[best_dest_index]
+                q_remain[best_dest_index] -= q_remain[best_dest_index]
+    # print(sum(p_remain))
+    # print(sum(q_remain))
+    # print(np.sum(pi))
+    # print(np.sum(np.dot(pi.T, np.ones((len(p),))) - q))
+    # exit()
+    return pi
+
 
 def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = None, G_init = None, a_distribution = None, b_distribution = None, norm = False, numItermax = 200, return_obj = False, verbose = False, **kwargs):
     """
@@ -74,7 +108,14 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
         # const2 = const2['gw_dist']
         # D_A = D_A / np.sqrt(const2)
         # D_B = D_B / np.sqrt(const2)
-    
+
+    """
+    Code for initialization
+    """
+    G_init = initialization(M, a, b)
+    """
+    Code for initialization ends
+    """
     # Run OT
     if G_init is None:
         pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose)
@@ -83,6 +124,7 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
     
     if return_obj:
         return pi, logw['fgw_dist']
+        # return pi, logw  # modified source code to return entire log
     return pi
 
 def center_align(A, slices, lmbda = None, alpha = 0.1, n_components = 15, threshold = 0.001, max_iter = 10, dissimilarity='kl', use_rep = None, norm = False, random_seed = None, pis_init = None, distributions=None, verbose = False):

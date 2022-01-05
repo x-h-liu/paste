@@ -72,11 +72,11 @@ import src.paste.PASTE as paste
 
 # sliceA = sc.read_10x_h5("/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleFalse_row0_col0.h5ad")
 
-sliceA = ad.read('/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleFalse_row0_col0.h5ad')
+#sliceA = ad.read('/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleFalse_row0_col0.h5ad')
 # print(sliceA)
 # print(sliceA.var.index)
-print(sliceA.obs)
-print(sliceA.obs.index)
+# print(sliceA.obs)
+# print(sliceA.obs.index)
 # print(sliceA.obsm['spatial'])
 # print(sliceA.obsm['spatial'].shape)
 # print(sliceA.X)
@@ -98,5 +98,7 @@ print(sliceA.obs.index)
 
 
 
+p = np.array([[1, 2, 3], [3, 2, 1]])
+print(np.argmin(p[1]))
 
 
