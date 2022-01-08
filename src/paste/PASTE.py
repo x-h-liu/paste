@@ -17,7 +17,7 @@ def initialization(M, p, q):
     pi = np.zeros((len(p), len(q)))
     for source_index in source_index_list:
         while p_remain[source_index] > 0:
-            available_dest_indices = np.argwhere(q_remain > 0)
+            available_dest_indices = np.argwhere(q_remain > 0).flatten()
             best_cost = float("inf")
             best_dest_index = None
             for dest_index in available_dest_indices:
@@ -25,6 +25,8 @@ def initialization(M, p, q):
                 if cost < best_cost:
                     best_cost = cost
                     best_dest_index = dest_index
+            if best_dest_index is None:
+                return pi
             if p_remain[source_index] < q_remain[best_dest_index]:
                 pi[source_index][best_dest_index] = p_remain[source_index]
                 q_remain[best_dest_index] -= p_remain[source_index]
@@ -112,7 +114,7 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
     """
     Code for initialization
     """
-    G_init = initialization(M, a, b)
+    # G_init = initialization(M, a, b)
     """
     Code for initialization ends
     """

@@ -2,6 +2,8 @@ import numpy as np
 import scanpy as sc
 import anndata as ad
 import src.paste.PASTE as paste
+from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+from scipy.spatial import distance_matrix
 
 
 # def gwgrad_partial(C1, C2, T):
@@ -97,8 +99,61 @@ import src.paste.PASTE as paste
 # print(pi[0][0])
 
 
+sliceA_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row0_col0.h5ad"
+sliceB_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row1_col0.h5ad"
+dissimilarity = 'kl'
+use_rep = None
 
-p = np.array([[1, 2, 3], [3, 2, 1]])
-print(np.argmin(p[1]))
 
 
+sliceA = sc.read_h5ad(sliceA_filename)
+sliceB = sc.read_h5ad(sliceB_filename)
+maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
+
+spotnamesA = sliceA.obs.index
+spotnamesB = sliceB.obs.index
+common_spots = intersect(spotnamesA, spotnamesB)
+matched_spots = []
+for spot in common_spots:
+    matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
+
+
+# subset for common genes
+common_genes = intersect(sliceA.var.index, sliceB.var.index)
+sliceA = sliceA[:, common_genes]
+sliceB = sliceB[:, common_genes]
+
+# Calculate expression dissimilarity
+A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
+    M = distance_matrix(A_X, B_X)
+else:
+    s_A = A_X + 0.01
+    s_B = B_X + 0.01
+    M = kl_divergence(s_A, s_B)
+
+# print(M.shape)
+# print(len(matched_spots))
+# for matched_spot in matched_spots:
+#     print("-------------")
+#     print(matched_spot)
+#     source_spot_idx = matched_spot[0]
+#     dest_spot_idx = matched_spot[1]
+#     print(M[source_spot_idx][dest_spot_idx])
+#     print(M[source_spot_idx])
+
+print(M.shape)
+print(len(matched_spots))
+avg_distance = 0
+for matched_spot in matched_spots:
+    # print("-------------")
+    # print(matched_spot)
+    source_spot_idx = matched_spot[0]
+    dest_spot_idx = matched_spot[1]
+    sum_distance = 0
+    for cost in M[source_spot_idx]:
+        sum_distance += cost - M[source_spot_idx][dest_spot_idx]
+    avg_distance += (sum_distance / len(M[source_spot_idx]))
+
+avg_distance /= len(matched_spots)
+print(avg_distance)
