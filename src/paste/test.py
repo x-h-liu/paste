@@ -99,8 +99,12 @@ from scipy.spatial import distance_matrix
 # print(pi[0][0])
 
 
-sliceA_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row0_col0.h5ad"
-sliceB_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row1_col0.h5ad"
+"""
+Code for evaluating the scale of gene expression distance
+"""
+
+sliceA_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row0_col0.h5ad"
+sliceB_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row0_col1.h5ad"
 dissimilarity = 'kl'
 use_rep = None
 
@@ -132,28 +136,33 @@ else:
     s_B = B_X + 0.01
     M = kl_divergence(s_A, s_B)
 
-# print(M.shape)
-# print(len(matched_spots))
-# for matched_spot in matched_spots:
-#     print("-------------")
-#     print(matched_spot)
-#     source_spot_idx = matched_spot[0]
-#     dest_spot_idx = matched_spot[1]
-#     print(M[source_spot_idx][dest_spot_idx])
-#     print(M[source_spot_idx])
-
 print(M.shape)
 print(len(matched_spots))
-avg_distance = 0
 for matched_spot in matched_spots:
-    # print("-------------")
-    # print(matched_spot)
+    print("-------------")
+    print(matched_spot)
     source_spot_idx = matched_spot[0]
     dest_spot_idx = matched_spot[1]
-    sum_distance = 0
-    for cost in M[source_spot_idx]:
-        sum_distance += cost - M[source_spot_idx][dest_spot_idx]
-    avg_distance += (sum_distance / len(M[source_spot_idx]))
+    print(M[source_spot_idx][dest_spot_idx])
+    print(M[source_spot_idx].min())
 
-avg_distance /= len(matched_spots)
-print(avg_distance)
+# print(M.shape)
+# print(len(matched_spots))
+# avg_distance = 0
+# for matched_spot in matched_spots:
+#     # print("-------------")
+#     # print(matched_spot)
+#     source_spot_idx = matched_spot[0]
+#     dest_spot_idx = matched_spot[1]
+#     sum_distance = 0
+#     for cost in M[source_spot_idx]:
+#         sum_distance += cost - M[source_spot_idx][dest_spot_idx]
+#     avg_distance += (sum_distance / len(M[source_spot_idx]))
+#
+# avg_distance /= len(matched_spots)
+# print(avg_distance)
+
+"""
+Code for evaluating the scale of gene expression distance ends.
+"""
+

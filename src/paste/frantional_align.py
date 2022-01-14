@@ -18,6 +18,11 @@ def fgwloss_partial(alpha, M, C1, C2, T, loss_fun='square_loss'):
     return (1 - alpha) * wloss(M, T) + alpha * gwloss_partial(C1, C2, T, loss_fun)
 
 
+def print_fgwloss_partial(alpha, M, C1, C2, T, loss_fun='square_loss'):
+    print("W term is: " + str((1 - alpha) * wloss(M, T)))
+    print("GW term is: " + str(alpha * gwloss_partial(C1, C2, T, loss_fun)))
+
+
 def gwgrad_partial(C1, C2, T, loss_fun="square_loss"):
     """Compute the GW gradient, as one term in the FGW gradient.
 
@@ -113,7 +118,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
 
     if G0 is None:
         G0 = initialization(M, p, q, m)
-        # G0 = np.outer(p, q)
+        #G0 = np.outer(p, q)
 
     nb_dummies = 1
     dim_G_extended = (len(p) + nb_dummies, len(q) + nb_dummies)
@@ -263,6 +268,17 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissi
     if norm:
         D_A /= D_A[D_A > 0].min().min()
         D_B /= D_B[D_B > 0].min().min()
+
+        """
+        Code for normalizing distance matrix
+        """
+        D_A /= D_A[D_A>0].max()
+        D_A *= 10
+        D_B /= D_B[D_B>0].max()
+        D_B *= 10
+        """
+        Code for normalizing distance matrix ends
+        """
 
     # Run OT
     # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,

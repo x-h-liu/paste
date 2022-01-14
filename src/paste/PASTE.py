@@ -98,6 +98,17 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
         D_A /= D_A[D_A>0].min().min()
         D_B /= D_B[D_B>0].min().min()
 
+        """
+        Code for normalizing distance matrix
+        """
+        # D_A /= D_A[D_A>0].max()
+        # D_A *= 10
+        # D_B /= D_B[D_B>0].max()
+        # D_B *= 10
+        """
+        Code for normalizing distance matrix ends
+        """
+
         # M = M / np.sum(a[:, None] * b[None, :] * M)
         # const = uniform_gwloss(D_A,D_B,a,b)
         # D_A = D_A / np.sqrt(const)
@@ -118,9 +129,17 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
     """
     Code for initialization ends
     """
+    # print(M)
+    # print(D_A)
+    # print(D_B)
+    # print(M.min())
+    # print(M.max())
+    # print(D_A.max())
+    # print(D_B.max())
+
     # Run OT
     if G_init is None:
-        pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose)
+        pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose, numItermaxEmd=1000000)
     else:
         pi, logw = my_fused_gromov_wasserstein(M, D_A, D_B, a, b, G_init = G_init, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose)
     

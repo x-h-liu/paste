@@ -71,7 +71,7 @@ def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha, dissi
     for spot in common_spots:
         matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
 
-    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity=dissimilarity, return_obj=True, verbose=True)
+    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity=dissimilarity, norm=True, return_obj=True, verbose=True)
     # print("Alignment value is: " + str(log))
     # for loss in log['loss']:
     #     print(loss)
@@ -89,24 +89,25 @@ def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha, dissi
 # print(accuracy, maximum_possible_accuracy)
 
 
-# to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1))]
+# # to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1))]
+# to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1)), ((0, 0), (1, 1)), ((0, 1), (1, 0))]
 # for pair in to_align:
 #     sliceA_row = pair[0][0]
 #     sliceA_col = pair[0][1]
 #     sliceB_row = pair[1][0]
 #     sliceB_col = pair[1][1]
-#     sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row' \
+#     sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
 #                       + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-#     sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row' \
+#     sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
 #                       + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
 #     print("=======================")
 #     print(pair)
-#     accuracy, maximum_possible_accuracy = original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha=0.0, dissimilarity='kl')
+#     accuracy, maximum_possible_accuracy = original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha=0.1, dissimilarity='kl')
 #     print("Alignment accuracy is: " + str(accuracy))
 #     print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
 
 
-def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, armijo=False, dissimilarity='kl'):
+def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, armijo=False, dissimilarity='kl', norm=False):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
     maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
@@ -118,7 +119,7 @@ def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, arm
     for spot in common_spots:
         matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
 
-    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, return_obj=True, verbose=True)
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
     # print("Alignment value is: " + str(log))
     # for loss in log['loss']:
     #     print(loss)
@@ -137,20 +138,20 @@ def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, arm
 # print(accuracy, maximum_possible_accuracy)
 
 
-to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1))]
+to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1)), ((0, 0), (1, 1)), ((0, 1), (1, 0))]
 for pair in to_align:
     sliceA_row = pair[0][0]
     sliceA_col = pair[0][1]
     sliceB_row = pair[1][0]
     sliceB_col = pair[1][1]
-    sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row' \
+    sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
                       + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-    sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_row' \
+    sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
                       + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
     print("=======================")
     print(pair)
-    accuracy, maximum_possible_accuracy = partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m=0.99, alpha=0.0,
-                                                                       armijo=False, dissimilarity='kl')
+    accuracy, maximum_possible_accuracy = partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m=0.9, alpha=0.5,
+                                                                       armijo=False, dissimilarity='kl', norm=True)
     print("Alignment accuracy is: " + str(accuracy))
     print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
 
