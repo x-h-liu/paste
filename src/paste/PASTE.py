@@ -101,10 +101,12 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
         """
         Code for normalizing distance matrix
         """
-        # D_A /= D_A[D_A>0].max()
-        # D_A *= 10
-        # D_B /= D_B[D_B>0].max()
-        # D_B *= 10
+        D_A /= D_A[D_A>0].max()
+        #D_A *= 10
+        D_A *= M.max()
+        D_B /= D_B[D_B>0].max()
+        #D_B *= 10
+        D_B *= M.max()
         """
         Code for normalizing distance matrix ends
         """

@@ -117,8 +117,8 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
                          " equal to min(|p|_1, |q|_1).")
 
     if G0 is None:
-        G0 = initialization(M, p, q, m)
-        #G0 = np.outer(p, q)
+        #G0 = initialization(M, p, q, m)
+        G0 = np.outer(p, q)
 
     nb_dummies = 1
     dim_G_extended = (len(p) + nb_dummies, len(q) + nb_dummies)
@@ -135,6 +135,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         print('{:5s}|{:12s}|{:8s}|{:8s}'.format(
             'It.', 'Loss', 'Relative loss', 'Absolute loss') + '\n' + '-' * 48)
         print('{:5d}|{:8e}|{:8e}|{:8e}'.format(cpt, f_val, 0, 0))
+        #print_fgwloss_partial(alpha, M, C1, C2, G0, loss_fun)
 
     # while err > tol and cpt < numItermax:
     while cpt < numItermax:
@@ -205,6 +206,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
             #     print('{:5s}|{:12s}|{:8s}|{:8s}'.format(
             #         'It.', 'Loss', 'Relative loss', 'Absolute loss') + '\n' + '-' * 48)
             print('{:5d}|{:8e}|{:8e}|{:8e}'.format(cpt, f_val, relative_delta_fval, abs_delta_fval))
+            #print_fgwloss_partial(alpha, M, C1, C2, G0, loss_fun)
 
     if log:
         log['partial_fgw_cost'] = fgwloss_partial(alpha, M, C1, C2, G0, loss_fun)
@@ -214,7 +216,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
 
 
 def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
-                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, **kwargs):
+                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, matched_spots=None, **kwargs):
     """
     Calculates and returns optimal alignment of two slices.
 
@@ -273,23 +275,98 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissi
         Code for normalizing distance matrix
         """
         D_A /= D_A[D_A>0].max()
-        D_A *= 10
+        #D_A *= 10
+        D_A *= M.max()
         D_B /= D_B[D_B>0].max()
-        D_B *= 10
+        #D_B *= 10
+        D_B *= M.max()
         """
         Code for normalizing distance matrix ends
         """
+    # print(M)
+    # print(D_A)
+    # print(D_B)
+    # print(M.min())
+    # print(M.max())
+    # print(D_A.max())
+    # print(D_B.max())
+    # exit()
 
     # Run OT
     # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
     #                                                   numItermax=numItermax, verbose=verbose)
     pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
 
+    if matched_spots:
+        true_pi = np.zeros(pi.shape)
+        for (source_idx, dest_idx) in matched_spots:
+            true_pi[source_idx][dest_idx] = min([a[source_idx], b[dest_idx]])
+        true_pi_value = fgwloss_partial(alpha, M, D_A, D_B, true_pi, loss_fun='square_loss')
+        print("Objective cost of the true alignment is %f" % true_pi_value)
+        accuracy = 0
+        for matched_spot in matched_spots:
+            accuracy += true_pi[matched_spot[0]][matched_spot[1]]
+        print("Accuracy of the true alignment is %f" % accuracy)
+
     if return_obj:
         return pi, log['partial_fgw_cost']
     return pi
 
 
+def partial_pairwise_align_POT(sliceA, sliceB, m=None, dissimilarity='kl', use_rep=None, a_distribution=None,
+                   b_distribution=None, norm=False, return_obj=False, verbose=False, **kwargs):
+    # subset for common genes
+    common_genes = intersect(sliceA.var.index, sliceB.var.index)
+    sliceA = sliceA[:, common_genes]
+    sliceB = sliceB[:, common_genes]
+    # print('Filtered all slices for common genes. There are ' + str(len(common_genes)) + ' common genes.')
+
+    # Calculate spatial distances
+    D_A = distance_matrix(sliceA.obsm['spatial'], sliceA.obsm['spatial'])
+    D_B = distance_matrix(sliceB.obsm['spatial'], sliceB.obsm['spatial'])
+
+    # Calculate expression dissimilarity
+    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+    if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
+        M = distance_matrix(A_X, B_X)
+    else:
+        s_A = A_X + 0.01
+        s_B = B_X + 0.01
+        M = kl_divergence(s_A, s_B)
+
+    # init distributions
+    if a_distribution is None:
+        a = np.ones((sliceA.shape[0],)) / sliceA.shape[0]
+    else:
+        a = a_distribution
+
+    if b_distribution is None:
+        b = np.ones((sliceB.shape[0],)) / sliceB.shape[0]
+    else:
+        b = b_distribution
+
+    if norm:
+        D_A /= D_A[D_A > 0].min().min()
+        D_B /= D_B[D_B > 0].min().min()
+
+        """
+        Code for normalizing distance matrix
+        """
+        D_A /= D_A[D_A>0].max()
+        D_A *= M.max()
+        D_B /= D_B[D_B>0].max()
+        D_B *= M.max()
+        """
+        Code for normalizing distance matrix ends
+        """
+    # Run OT
+    # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
+    #                                                   numItermax=numItermax, verbose=verbose)
+    pi, log = ot.partial.partial_wasserstein(a, b, M, m=m, log=True, numItermax=1000000)
+
+    if return_obj:
+        return pi, log['partial_w_dist']
+    return pi
 
 
 
