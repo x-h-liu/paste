@@ -35,6 +35,27 @@ def kl_divergence(X, Y):
     return np.asarray(D)
 
 
+def generalized_kl_divergence(X, Y):
+    """
+    Returns pairwise generalized KL divergence (over all pairs of samples) of two matrices X and Y.
+
+    param: X - np array with dim (n_samples by n_features)
+    param: Y - np array with dim (m_samples by n_features)
+
+    return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
+    """
+    assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
+
+    log_X = np.log(X)
+    log_Y = np.log(Y)
+    X_log_X = np.matrix([np.dot(X[i], log_X[i].T) for i in range(X.shape[0])])
+    D = X_log_X.T - np.dot(X, log_Y.T)
+    sum_X = np.sum(X, axis=1)
+    sum_Y = np.sum(Y, axis=1)
+    D = (D.T - sum_X).T + sum_Y.T
+    return np.asarray(D)
+
+
 def intersect(lst1, lst2): 
     """
     param: lst1 - list

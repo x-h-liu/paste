@@ -1,6 +1,6 @@
 import numpy as np
 import ot
-from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix, generalized_kl_divergence
 from scipy.spatial import distance_matrix
 import random
 
@@ -99,10 +99,23 @@ def initialization(M, p, q, m):
     random.shuffle(index_list)
     pi = np.zeros((len(p), len(q)))
     while m > 0:
+        if len(index_list) == 0:
+            return pi
         source_idx = index_list.pop()
         dest_idx = np.argmin(M[source_idx])
         pi[source_idx][dest_idx] = min([p[source_idx], q[dest_idx], m])
         m -= pi[source_idx][dest_idx]
+
+
+
+    print("IN INITIALIZATION")
+    print(np.sum(np.dot(pi.T, np.ones((pi.shape[0],)))))
+    print(np.max(np.dot(pi.T, np.ones((pi.shape[0],)))))
+    print("IN INITIALIZATION")
+
+
+
+
     return pi
 
 
@@ -117,7 +130,8 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
                          " equal to min(|p|_1, |q|_1).")
 
     if G0 is None:
-        #G0 = initialization(M, p, q, m)
+        # G0 = initialization(M, p, q, m)
+        # return G0, {"partial_fgw_cost":0}
         G0 = np.outer(p, q)
 
     nb_dummies = 1
@@ -251,6 +265,12 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissi
     A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
     if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
         M = distance_matrix(A_X, B_X)
+    elif dissimilarity.lower() == 'gkl':
+        s_A = A_X + 0.01
+        s_B = B_X + 0.01
+        M = generalized_kl_divergence(s_A, s_B)
+        M /= M[M > 0].max()
+        M *= 10
     else:
         s_A = A_X + 0.01
         s_B = B_X + 0.01
