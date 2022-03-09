@@ -1,6 +1,11 @@
 import numpy as np
 import scipy
 import ot
+from .glmpca import glmpca
+import time
+import anndata as ad
+import scanpy as sc
+from scipy.spatial import distance
 
 def filter_for_common_genes(slices):
     """
@@ -42,7 +47,7 @@ def generalized_kl_divergence(X, Y):
     param: X - np array with dim (n_samples by n_features)
     param: Y - np array with dim (m_samples by n_features)
 
-    return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
+    return: D - np array with dim (n_samples by m_samples). Pairwise generalized KL divergence matrix.
     """
     assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
 
@@ -54,6 +59,82 @@ def generalized_kl_divergence(X, Y):
     sum_Y = np.sum(Y, axis=1)
     D = (D.T - sum_X).T + sum_Y.T
     return np.asarray(D)
+
+
+def glmpca_distance(X, Y, latent_dim=20, filter=True):
+    """
+    param: X - np array with dim (n_samples by n_features)
+    param: Y - np array with dim (m_samples by n_features)
+    param: latent_dim - number of latent dimensions in glm-pca
+    """
+    assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
+
+    joint_matrix = np.vstack((X, Y))
+    if filter:
+        gene_umi_counts = np.sum(joint_matrix, axis=0)
+        top_indices = np.sort((-gene_umi_counts).argsort()[:2000])
+        joint_matrix = joint_matrix[:, top_indices]
+
+    print("Starting GLM-PCA...")
+    res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=True)
+    reduced_joint_matrix = res["factors"]
+    print("GLM-PCA finished with joint matrix shape " + str(reduced_joint_matrix.shape))
+
+    X = reduced_joint_matrix[:X.shape[0], :]
+    Y = reduced_joint_matrix[X.shape[0]:, :]
+    return distance.cdist(X, Y)
+
+
+def glmpca_distance2(sliceA, sliceB, latent_dim=20, use_rep=None):
+    joint_adata = ad.concat([sliceA, sliceB])
+    sc.pp.normalize_total(joint_adata, inplace=True)
+    sc.pp.log1p(joint_adata)
+    sc.pp.highly_variable_genes(joint_adata, flavor="seurat", n_top_genes=2000, inplace=True, subset=True)
+
+    sliceA = sliceA[:, joint_adata.var.index]
+    sliceB = sliceB[:, joint_adata.var.index]
+    X, Y = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+    joint_matrix = np.vstack((X, Y))
+    res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=True)
+    reduced_joint_matrix = res["factors"]
+    X = reduced_joint_matrix[:sliceA.shape[0], :]
+    Y = reduced_joint_matrix[sliceA.shape[0]:, :]
+    return distance.cdist(X, Y)
+
+
+def pca_distance(sliceA, sliceB, n, latent_dim):
+    # TODO
+    print(sliceA.shape)
+    print(sliceB.shape)
+    joint_adata = ad.concat([sliceA, sliceB])
+    print(joint_adata.shape)
+    sc.pp.normalize_total(joint_adata, inplace=True)
+    sc.pp.log1p(joint_adata)
+    sc.pp.highly_variable_genes(joint_adata, flavor="seurat", n_top_genes=n, inplace=True, subset=True)
+    print(joint_adata.shape)
+    sc.pp.pca(joint_adata, latent_dim)
+    joint_datamatrix = joint_adata.obsm['X_pca']
+    X = joint_datamatrix[:sliceA.shape[0], :]
+    Y = joint_datamatrix[sliceA.shape[0]:, :]
+    print(X.shape)
+    print(Y.shape)
+    return distance.cdist(X, Y)
+
+
+def high_umi_gene_distance(X, Y, n):
+    """
+    n: number of highest umi count genes to keep
+    """
+    assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
+
+    joint_matrix = np.vstack((X, Y))
+    gene_umi_counts = np.sum(joint_matrix, axis=0)
+    top_indices = np.sort((-gene_umi_counts).argsort()[:n])
+    X = X[:, top_indices]
+    Y = Y[:, top_indices]
+    X += np.tile(0.01 * (np.sum(X, axis=1) / X.shape[1]), (X.shape[1], 1)).T
+    Y += np.tile(0.01 * (np.sum(Y, axis=1) / Y.shape[1]), (Y.shape[1], 1)).T
+    return kl_divergence(X, Y)
 
 
 def intersect(lst1, lst2): 

@@ -2,7 +2,8 @@ import numpy as np
 import scanpy as sc
 import anndata as ad
 import src.paste.PASTE as paste
-from src.paste.helper import intersect, to_dense_array, extract_data_matrix
+from src.paste.helper import intersect, to_dense_array, extract_data_matrix, glmpca_distance, pca_distance
+import src.paste.helper as helper
 from scipy.spatial import distance_matrix
 import scipy
 
@@ -199,71 +200,71 @@ Code for calculating percentage of overlap between two sub-slices ends
 """
 Code for testing KL divergence
 """
-def kl_divergence(X, Y):
-    """
-    Returns pairwise KL divergence (over all pairs of samples) of two matrices X and Y.
-
-    param: X - np array with dim (n_samples by n_features)
-    param: Y - np array with dim (m_samples by n_features)
-
-    return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
-    """
-    assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
-
-    X = X / X.sum(axis=1, keepdims=True)
-    Y = Y / Y.sum(axis=1, keepdims=True)
-    log_X = np.log(X)
-    log_Y = np.log(Y)
-    X_log_X = np.matrix([np.dot(X[i], log_X[i].T) for i in range(X.shape[0])])
-    # print(X_log_X.T.shape)
-    # print(np.dot(X, log_Y.T).shape)
-    D = X_log_X.T - np.dot(X, log_Y.T)
-    return np.asarray(D)
-
-def generalized_kl_divergence(X, Y):
-    """
-    Returns pairwise generalized KL divergence (over all pairs of samples) of two matrices X and Y.
-
-    param: X - np array with dim (n_samples by n_features)
-    param: Y - np array with dim (m_samples by n_features)
-
-    return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
-    """
-    assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
-    log_X = np.log(X)
-    log_Y = np.log(Y)
-    X_log_X = np.matrix([np.dot(X[i], log_X[i].T) for i in range(X.shape[0])])
-    D = X_log_X.T - np.dot(X, log_Y.T)
-    sum_X = np.sum(X, axis=1)
-    sum_Y = np.sum(Y, axis=1)
-    D = (D.T - sum_X).T + sum_Y.T
-    return np.asarray(D)
-
-def pairwise_align(sliceA, sliceB, use_rep=None):
-
-    # subset for common genes
-    common_genes = intersect(sliceA.var.index, sliceB.var.index)
-    sliceA = sliceA[:, common_genes]
-    sliceB = sliceB[:, common_genes]
-
-    # Calculate expression dissimilarity
-    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
-    s_A = A_X + 0.01
-    s_B = B_X + 0.01
-    M = generalized_kl_divergence(s_A, s_B)
-    M /= M[M > 0].max()
-    M *= 10
-    return M
-    #return kl_divergence(s_A, s_B)
-
-sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.5_dropFalse_rotateFalse_resampleTrue_delta1.0_row0_col0.h5ad'
-sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.5_dropFalse_rotateFalse_resampleTrue_delta1.0_row1_col0.h5ad'
-sliceA = sc.read_h5ad(sliceA_filename)
-sliceB = sc.read_h5ad(sliceB_filename)
-
-M = pairwise_align(sliceA, sliceB)
-print(M)
-print(M.max())
+# def kl_divergence(X, Y):
+#     """
+#     Returns pairwise KL divergence (over all pairs of samples) of two matrices X and Y.
+#
+#     param: X - np array with dim (n_samples by n_features)
+#     param: Y - np array with dim (m_samples by n_features)
+#
+#     return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
+#     """
+#     assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
+#
+#     X = X / X.sum(axis=1, keepdims=True)
+#     Y = Y / Y.sum(axis=1, keepdims=True)
+#     log_X = np.log(X)
+#     log_Y = np.log(Y)
+#     X_log_X = np.matrix([np.dot(X[i], log_X[i].T) for i in range(X.shape[0])])
+#     # print(X_log_X.T.shape)
+#     # print(np.dot(X, log_Y.T).shape)
+#     D = X_log_X.T - np.dot(X, log_Y.T)
+#     return np.asarray(D)
+#
+# def generalized_kl_divergence(X, Y):
+#     """
+#     Returns pairwise generalized KL divergence (over all pairs of samples) of two matrices X and Y.
+#
+#     param: X - np array with dim (n_samples by n_features)
+#     param: Y - np array with dim (m_samples by n_features)
+#
+#     return: D - np array with dim (n_samples by m_samples). Pairwise KL divergence matrix.
+#     """
+#     assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
+#     log_X = np.log(X)
+#     log_Y = np.log(Y)
+#     X_log_X = np.matrix([np.dot(X[i], log_X[i].T) for i in range(X.shape[0])])
+#     D = X_log_X.T - np.dot(X, log_Y.T)
+#     sum_X = np.sum(X, axis=1)
+#     sum_Y = np.sum(Y, axis=1)
+#     D = (D.T - sum_X).T + sum_Y.T
+#     return np.asarray(D)
+#
+# def pairwise_align(sliceA, sliceB, use_rep=None):
+#
+#     # subset for common genes
+#     common_genes = intersect(sliceA.var.index, sliceB.var.index)
+#     sliceA = sliceA[:, common_genes]
+#     sliceB = sliceB[:, common_genes]
+#
+#     # Calculate expression dissimilarity
+#     A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+#     s_A = A_X + 0.01
+#     s_B = B_X + 0.01
+#     M = generalized_kl_divergence(s_A, s_B)
+#     M /= M[M > 0].max()
+#     M *= 10
+#     return M
+#     #return kl_divergence(s_A, s_B)
+#
+# sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.5_dropFalse_rotateFalse_resampleTrue_delta1.0_row0_col0.h5ad'
+# sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.5_dropFalse_rotateFalse_resampleTrue_delta1.0_row1_col0.h5ad'
+# sliceA = sc.read_h5ad(sliceA_filename)
+# sliceB = sc.read_h5ad(sliceB_filename)
+#
+# M = pairwise_align(sliceA, sliceB)
+# print(M)
+# print(M.max())
 
 """
 Code for testing KL divergence ends
@@ -303,3 +304,23 @@ Code for calculating binomial deviance
 """
 Code for calculating binomial deviance ends
 """
+
+
+
+
+"""
+Code for testing glmpca
+"""
+sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151673/151673_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col0.h5ad'
+sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674/151674_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col1.h5ad'
+sliceA = sc.read_h5ad(sliceA_filename)
+sliceB = sc.read_h5ad(sliceB_filename)
+common_genes = intersect(sliceA.var.index, sliceB.var.index)
+sliceA = sliceA[:, common_genes]
+sliceB = sliceB[:, common_genes]
+A_X, B_X = to_dense_array(extract_data_matrix(sliceA, None)), to_dense_array(extract_data_matrix(sliceB, None))
+
+
+glmpca_distance(A_X, B_X, 20)
+# pca_distance(sliceA, sliceB, 5000, 500)
+# print(helper.high_umi_gene_distance(A_X, B_X, 2000).shape)

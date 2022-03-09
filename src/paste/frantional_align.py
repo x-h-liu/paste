@@ -1,6 +1,7 @@
 import numpy as np
 import ot
-from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix, generalized_kl_divergence
+from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix, generalized_kl_divergence, \
+    high_umi_gene_distance, pca_distance, glmpca_distance, glmpca_distance2
 from scipy.spatial import distance_matrix
 import random
 
@@ -271,10 +272,21 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissi
         M = generalized_kl_divergence(s_A, s_B)
         M /= M[M > 0].max()
         M *= 10
-    else:
+    elif dissimilarity.lower() == 'kl':
         s_A = A_X + 0.01
         s_B = B_X + 0.01
         M = kl_divergence(s_A, s_B)
+    elif dissimilarity.lower() == 'selection_kl':
+        M = high_umi_gene_distance(A_X, B_X, 2000)
+    elif dissimilarity.lower() == "pca":
+        M = pca_distance(sliceA, sliceB, 2000, 20)
+    elif dissimilarity.lower() == 'glmpca':
+        M = glmpca_distance(A_X, B_X, latent_dim=20, filter=True)
+    elif dissimilarity.lower() == 'glmpca2':
+        M = glmpca_distance2(sliceA, sliceB, latent_dim=20, use_rep=use_rep)
+    else:
+        print("ERROR")
+        exit(1)
 
     # init distributions
     if a_distribution is None:
