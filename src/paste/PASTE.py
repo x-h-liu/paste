@@ -5,7 +5,8 @@ from sklearn.decomposition import NMF
 from scipy.spatial import distance_matrix
 import scipy
 from numpy import linalg as LA
-from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+# from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
+from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
 import random
 
 

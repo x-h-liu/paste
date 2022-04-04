@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import scanpy as sc
 from matplotlib import colors
+import sklearn
 
 
 
@@ -38,3 +39,30 @@ def plot_slice_umi(slice_, figsize=None, ax=None, s=100):
     if ax:
         ax.invert_yaxis()
         ax.axis('off')
+
+
+
+def compute_alignment_ari(sliceA, sliceB, pi):
+    mapped_clusters = []
+    for j in range(pi.shape[1]):
+        mapping = pi[:, j]
+        if np.sum(mapping) > 0:
+            i = np.argmax(mapping)
+            mapped_clusters.append(sliceA.obs['layer_guess_reordered'][i])
+        else:
+            mapped_clusters.append("NULL")
+
+    assert len(sliceB.obs['layer_guess_reordered']) == len(mapped_clusters)
+    true_clusters_mapped_region = []
+    mapped_clusters_mapped_region = []
+    for i in range(len(sliceB.obs['layer_guess_reordered'])):
+        if mapped_clusters[i] != "NULL":
+            true_clusters_mapped_region.append(sliceB.obs['layer_guess_reordered'][i])
+            mapped_clusters_mapped_region.append(mapped_clusters[i])
+
+    ari = sklearn.metrics.adjusted_rand_score(true_clusters_mapped_region, mapped_clusters_mapped_region)
+    return ari
+
+
+
+

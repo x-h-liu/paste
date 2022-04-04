@@ -6,6 +6,8 @@ from src.paste.helper import intersect, to_dense_array, extract_data_matrix, glm
 import src.paste.helper as helper
 from scipy.spatial import distance_matrix
 import scipy
+from src.paste.fractional_align import partial_pairwise_align
+from experiments.explore_partial_properties import plot_slice_pairwise_alignment
 
 
 # def gwgrad_partial(C1, C2, T):
@@ -311,16 +313,23 @@ Code for calculating binomial deviance ends
 """
 Code for testing glmpca
 """
-sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151673/151673_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col0.h5ad'
-sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674/151674_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col1.h5ad'
+# sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151673/151673_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col0.h5ad'
+# sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674/151674_overlap0.7_dropFalse_rotateFalse_resampleFalse_delta0.0_row0_col1.h5ad'
+sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.9_dropFalse_rotateFalse_resampleTrue_delta1.0_row0_col0.h5ad'
+sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/151674_overlap0.9_dropFalse_rotateFalse_resampleTrue_delta1.0_row1_col0.h5ad'
+
+
 sliceA = sc.read_h5ad(sliceA_filename)
 sliceB = sc.read_h5ad(sliceB_filename)
-common_genes = intersect(sliceA.var.index, sliceB.var.index)
-sliceA = sliceA[:, common_genes]
-sliceB = sliceB[:, common_genes]
-A_X, B_X = to_dense_array(extract_data_matrix(sliceA, None)), to_dense_array(extract_data_matrix(sliceB, None))
+# common_genes = intersect(sliceA.var.index, sliceB.var.index)
+# sliceA = sliceA[:, common_genes]
+# sliceB = sliceB[:, common_genes]
+# A_X, B_X = to_dense_array(extract_data_matrix(sliceA, None)), to_dense_array(extract_data_matrix(sliceB, None))
+#
+#
+# glmpca_distance(A_X, B_X, 20)
+# # pca_distance(sliceA, sliceB, 5000, 500)
+# # print(helper.high_umi_gene_distance(A_X, B_X, 2000).shape)
 
-
-glmpca_distance(A_X, B_X, 20)
-# pca_distance(sliceA, sliceB, 5000, 500)
-# print(helper.high_umi_gene_distance(A_X, B_X, 2000).shape)
+pi, log = partial_pairwise_align(sliceA, sliceB, alpha=0.3, m=0.9, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+plot_slice_pairwise_alignment(sliceA, sliceB, pi)

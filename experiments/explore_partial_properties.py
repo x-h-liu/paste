@@ -1,8 +1,8 @@
 import numpy as np
 import scanpy as sc
 from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
-from src.paste.frantional_align import partial_pairwise_align
-from helper import plot_slice, plot_slice_umi
+from src.paste.fractional_align import partial_pairwise_align, partial_pairwise_align_paste_init
+from experiments.helper import plot_slice, plot_slice_umi, compute_alignment_ari
 import matplotlib.pyplot as plt
 import src.paste.PASTE as paste
 
@@ -24,11 +24,12 @@ def check_mapped_partial_region(sliceA_filename, sliceB_filename, m, alpha, armi
     matched_spots = []
     for spot in common_spots:
         matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
-    plot_slice(sliceA[common_spots])
-    plot_slice_umi(sliceA[common_spots])
+    # plot_slice(sliceA[common_spots])
+    # plot_slice_umi(sliceA[common_spots])
 
 
-    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
+    # pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
+    pi, log = partial_pairwise_align_paste_init(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
     print(pi.shape)
     print("Objective cost of the optimized alignment is %f" % log)
     print("Total mass transported is: " + str(np.sum(pi)))
@@ -38,6 +39,8 @@ def check_mapped_partial_region(sliceA_filename, sliceB_filename, m, alpha, armi
     maximum_possible_accuracy = len(common_spots) / float(maximum_num_spots)
     print("Alignment accuracy is: " + str(accuracy))
     print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
+    ari = compute_alignment_ari(sliceA, sliceB, pi)
+    print("ARI is: " + str(ari))
 
 
     going_out = np.dot(pi, np.ones((sliceB.shape[0], ))) > 0
@@ -46,59 +49,71 @@ def check_mapped_partial_region(sliceA_filename, sliceB_filename, m, alpha, armi
     coming_in = np.dot(pi.T, np.ones((sliceA.shape[0], ))) > 0
     coming_in_part = sliceB[sliceB.obs.index[coming_in]]
     plot_slice(going_out_part)
-    plot_slice_umi(going_out_part)
+    # plot_slice_umi(going_out_part)
     plot_slice(coming_in_part)
-    plot_slice_umi(coming_in_part)
+    # plot_slice_umi(coming_in_part)
 
 
-    going_out_indices = np.argwhere(going_out > 0).flatten()
-    coming_in_indices = np.argwhere(coming_in > 0).flatten()
-    going_out_correct = 0
-    coming_in_correct = 0
-    for matched_spot in matched_spots:
-        if matched_spot[0] in going_out_indices:
-            going_out_correct += 1
-        if matched_spot[1] in coming_in_indices:
-            coming_in_correct += 1
-    percentage_correctly_going_out = float(going_out_correct) / len(matched_spots)
-    percentage_correctly_coming_in = float(coming_in_correct) / len(matched_spots)
-    print("In the overlap region of the source slice, %f of them are actually mapped to some spot in the target slice" % percentage_correctly_going_out)
-    print("In the overlap region of the target slice, %f of them are actually mapped to some spot in the source slice" % percentage_correctly_coming_in)
+    # going_out_indices = np.argwhere(going_out > 0).flatten()
+    # coming_in_indices = np.argwhere(coming_in > 0).flatten()
+    # going_out_correct = 0
+    # coming_in_correct = 0
+    # for matched_spot in matched_spots:
+    #     if matched_spot[0] in going_out_indices:
+    #         going_out_correct += 1
+    #     if matched_spot[1] in coming_in_indices:
+    #         coming_in_correct += 1
+    # percentage_correctly_going_out = float(going_out_correct) / len(matched_spots)
+    # percentage_correctly_coming_in = float(coming_in_correct) / len(matched_spots)
+    # print("In the overlap region of the source slice, %f of them are actually mapped to some spot in the target slice" % percentage_correctly_going_out)
+    # print("In the overlap region of the target slice, %f of them are actually mapped to some spot in the source slice" % percentage_correctly_coming_in)
 
 
-    overlap_source_indices = [matched_spot[0] for matched_spot in matched_spots]
-    overlap_dest_indices = [matched_spot[1] for matched_spot in matched_spots]
-    cnt_source_off = 0
-    cnt_target_off = 0
-    for source_spot_idx in overlap_source_indices:
-        mapped_to_indices = np.argwhere(pi[source_spot_idx] > 0).flatten()
-        for idx in mapped_to_indices:
-            if idx not in overlap_dest_indices:
-                cnt_source_off += 1
-                break
-    percentage_source_off = float(cnt_source_off) / len(overlap_source_indices)
-    for dest_spot_idx in overlap_dest_indices:
-        mapped_to_indices = np.argwhere(pi[:, dest_spot_idx] > 0).flatten()
-        for idx in mapped_to_indices:
-            if idx not in overlap_source_indices:
-                cnt_target_off += 1
-                break
-    percentage_target_off = float(cnt_target_off) / len(overlap_dest_indices)
-    print("In the overlap region of the source slice, %f of them have mass transported to spots in the un-overlapped region in the target slice" % percentage_source_off)
-    print("In the overlap region of the target slice, %f of them have mass transported to spots in the un-overlapped region in the source slice" % percentage_target_off)
+    # overlap_source_indices = [matched_spot[0] for matched_spot in matched_spots]
+    # overlap_dest_indices = [matched_spot[1] for matched_spot in matched_spots]
+    # cnt_source_off = 0
+    # cnt_target_off = 0
+    # for source_spot_idx in overlap_source_indices:
+    #     mapped_to_indices = np.argwhere(pi[source_spot_idx] > 0).flatten()
+    #     for idx in mapped_to_indices:
+    #         if idx not in overlap_dest_indices:
+    #             cnt_source_off += 1
+    #             break
+    # percentage_source_off = float(cnt_source_off) / len(overlap_source_indices)
+    # for dest_spot_idx in overlap_dest_indices:
+    #     mapped_to_indices = np.argwhere(pi[:, dest_spot_idx] > 0).flatten()
+    #     for idx in mapped_to_indices:
+    #         if idx not in overlap_source_indices:
+    #             cnt_target_off += 1
+    #             break
+    # percentage_target_off = float(cnt_target_off) / len(overlap_dest_indices)
+    # print("In the overlap region of the source slice, %f of them have mass transported to spots in the un-overlapped region in the target slice" % percentage_source_off)
+    # print("In the overlap region of the target slice, %f of them have mass transported to spots in the un-overlapped region in the source slice" % percentage_target_off)
 
 
-    umi_of_correct_spots = []
-    umi_of_wrong_spots = []
+    # umi_of_correct_spots = []
+    # umi_of_wrong_spots = []
+    # for matched_spot in matched_spots:
+    #     if pi[matched_spot[0]][matched_spot[1]] > 0:
+    #         umi_of_correct_spots.append(sliceA.obs["sum_umi"][matched_spot[0]])
+    #     else:
+    #         umi_of_wrong_spots.append(sliceA.obs["sum_umi"][matched_spot[0]])
+    # avg_umi_of_correctly_mapped_spots = np.average(umi_of_correct_spots)
+    # avg_umi_of_wrongly_unmapped_spots = np.average(umi_of_wrong_spots)
+    # print("In the overlap region of the source slice, the average UMI of the correctly mapped spots is %f" % avg_umi_of_correctly_mapped_spots)
+    # print("In the overlap region of the source slice, the average UMI of unmapped spots is %f" % avg_umi_of_wrongly_unmapped_spots)
+
+    source_correctly_mapped = []
+    target_correctly_mapped = []
     for matched_spot in matched_spots:
         if pi[matched_spot[0]][matched_spot[1]] > 0:
-            umi_of_correct_spots.append(sliceA.obs["sum_umi"][matched_spot[0]])
-        else:
-            umi_of_wrong_spots.append(sliceA.obs["sum_umi"][matched_spot[0]])
-    avg_umi_of_correctly_mapped_spots = np.average(umi_of_correct_spots)
-    avg_umi_of_wrongly_unmapped_spots = np.average(umi_of_wrong_spots)
-    print("In the overlap region of the source slice, the average UMI of the correctly mapped spots is %f" % avg_umi_of_correctly_mapped_spots)
-    print("In the overlap region of the source slice, the average UMI of unmapped spots is %f" % avg_umi_of_wrongly_unmapped_spots)
+            source_correctly_mapped.append(matched_spot[0])
+            target_correctly_mapped.append(matched_spot[1])
+    source_correctly_mapped_part = sliceA[sliceA.obs.index[np.sort(source_correctly_mapped)]]
+    target_correctly_mapped_part = sliceB[sliceB.obs.index[np.sort(target_correctly_mapped)]]
+    plot_slice(source_correctly_mapped_part)
+    plot_slice(target_correctly_mapped_part)
+
 
     plt.show()
 
@@ -164,18 +179,20 @@ def original_paste_inspect_pi(sliceA_filename, sliceB_filename, alpha, dissimila
 
 
 
-def check_mapped_partial_region_realdata(sliceA_filename, sliceB_filename, m, alpha, armijo=False, dissimilarity='kl', norm=True):
+def check_mapped_partial_region_realdata(sliceA_filename, sliceB_filename, m, alpha, armijo=False, dissimilarity='glmpca', norm=True):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
     maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
     plot_slice(sliceA)
-    plot_slice_umi(sliceA)
+    # plot_slice_umi(sliceA)
     plot_slice(sliceB)
-    plot_slice_umi(sliceB)
+    # plot_slice_umi(sliceB)
 
-    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
+    # pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
+    pi, log = partial_pairwise_align_paste_init(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
     print(pi.shape)
     print("Total mass transported is: " + str(np.sum(pi)))
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
 
     going_out = np.dot(pi, np.ones((sliceB.shape[0], ))) > 0
     going_out_part = sliceA[sliceA.obs.index[going_out]]
@@ -187,3 +204,62 @@ def check_mapped_partial_region_realdata(sliceA_filename, sliceB_filename, m, al
     plot_slice(coming_in_part)
 
     plt.show()
+
+
+def original_realdata(sliceA_filename, sliceB_filename, alpha, dissimilarity='kl', norm=True):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    plt.show()
+
+
+"""
+Code for visualizing alignment
+"""
+def largest_indices(ary, n):
+    """Returns the n largest indices from a numpy array."""
+    flat = ary.flatten()
+    indices = np.argpartition(flat, -n)[-n:]
+    indices = indices[np.argsort(-flat[indices])]
+    return np.unravel_index(indices, ary.shape)
+
+
+def plot2D_samples_mat(xs, xt, G, thr=1e-8, alpha=0.2, top=1000, weight_alpha=False, **kwargs):
+    if ('color' not in kwargs) and ('c' not in kwargs):
+        kwargs['color'] = 'k'
+    mx = G.max()
+    #     idx = np.where(G/mx>=thr)
+    idx = largest_indices(G, top)
+    print(len(idx[0]))
+    for l in range(len(idx[0])):
+        plt.plot([xs[idx[0][l], 0], xt[idx[1][l], 0]], [xs[idx[0][l], 1], xt[idx[1][l], 1]],
+                 alpha=alpha * (1 - weight_alpha) + (weight_alpha * G[idx[0][l], idx[1][l]] / mx), c='k')
+
+
+def plot_slice_pairwise_alignment(slice1, slice2, pi, thr=1 - 1e-8, alpha=0.05, top=1000, name='', save=False,
+                                  weight_alpha=False):
+    coordinates1, coordinates2 = slice1.obsm['spatial'], slice2.obsm['spatial']
+    offset = (coordinates1[:, 0].max() - coordinates2[:, 0].min()) * 1.1
+    temp = np.zeros(coordinates2.shape)
+    temp[:, 0] = offset
+    plt.figure(figsize=(20, 10))
+    plot2D_samples_mat(coordinates1, coordinates2 + temp, pi, thr=thr, c='k', alpha=alpha, top=top,
+                       weight_alpha=weight_alpha)
+    plt.scatter(coordinates1[:, 0], coordinates1[:, 1], linewidth=0, s=100, marker=".", color=list(
+        slice1.obs['layer_guess_reordered'].map(
+            dict(zip(slice1.obs['layer_guess_reordered'].cat.categories, slice1.uns['layer_guess_reordered_colors'])))))
+    plt.scatter(coordinates2[:, 0] + offset, coordinates2[:, 1], linewidth=0, s=100, marker=".", color=list(
+        slice2.obs['layer_guess_reordered'].map(
+            dict(zip(slice2.obs['layer_guess_reordered'].cat.categories, slice2.uns['layer_guess_reordered_colors'])))))
+    plt.gca().invert_yaxis()
+    plt.axis('off')
+    if save: plt.savefig("/Users/ronzeira/Documents/GitHub/paste/paste_output/DLPFC/figs/{}.pdf".format(name),
+                         bbox_inches='tight')
+    plt.show()
+"""
+Code for visualizing alignment ends
+"""

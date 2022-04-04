@@ -1,7 +1,8 @@
 import numpy as np
 import scipy
 import ot
-from .glmpca import glmpca
+# from .glmpca import glmpca
+from src.paste.glmpca import glmpca
 import time
 import anndata as ad
 import scanpy as sc
@@ -66,6 +67,7 @@ def glmpca_distance(X, Y, latent_dim=20, filter=True):
     param: X - np array with dim (n_samples by n_features)
     param: Y - np array with dim (m_samples by n_features)
     param: latent_dim - number of latent dimensions in glm-pca
+    param: filter - whether to first select genes with highest UMI counts
     """
     assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
 
@@ -77,6 +79,7 @@ def glmpca_distance(X, Y, latent_dim=20, filter=True):
 
     print("Starting GLM-PCA...")
     res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=True)
+    #res = glmpca(joint_matrix.T, latent_dim, fam='nb', penalty=1, verbose=True)
     reduced_joint_matrix = res["factors"]
     print("GLM-PCA finished with joint matrix shape " + str(reduced_joint_matrix.shape))
 
