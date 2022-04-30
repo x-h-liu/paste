@@ -5,6 +5,7 @@ import seaborn as sns
     Functions to plot slices and align spatial coordinates after obtaining a mapping from PASTE.
 """
 
+
 def stack_slices_pairwise(slices, pis, output_params=False):
     """
     Align spatial coordinates of sequential pairwise slices.
@@ -51,6 +52,26 @@ def stack_slices_pairwise(slices, pis, output_params=False):
         return new_slices
     else:
         return new_slices, thetas, translations
+
+
+def partial_stack_slices_pairwise(slices, pis):
+    assert len(slices) == len(pis) + 1, "'slices' should have length one more than 'pis'. Please double check."
+    assert len(slices) > 1, "You should have at least 2 layers."
+
+    new_coor = []
+    S1, S2 = partial_procrustes_analysis(slices[0].obsm['spatial'], slices[1].obsm['spatial'], pis[0])
+    new_coor.append(S1)
+    new_coor.append(S2)
+    for i in range(1, len(slices) - 1):
+        # TODO: there might be a problem here. If this code is needed, plot to see if the coordinates are consistent
+        x, y = partial_procrustes_analysis(new_coor[i], slices[i + 1].obsm['spatial'], pis[i])
+        new_coor.append(y)
+    new_slices = []
+    for i in range(len(slices)):
+        s = slices[i].copy()
+        s.obsm['spatial'] = new_coor[i]
+        new_slices.append(s)
+    return new_slices
 
 
 def stack_slices_center(center_slice, slices, pis, output_params=False):
@@ -116,6 +137,18 @@ def generalized_procrustes_analysis(X, Y, pi):
     R = Vt.T.dot(U.T)
     Y = R.dot(Y.T).T
     return X,Y
+
+
+def partial_procrustes_analysis(X, Y, pi):
+    m = np.sum(pi)
+    Z = (X - pi.sum(axis=1).dot(X) * (1.0 / m)).T
+    W = (Y - pi.sum(axis=0).dot(Y) * (1.0 / m)).T
+    H = W.dot(pi.T.dot(Z.T))
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T.dot(U.T)
+    W = R.dot(W)
+    return Z.T, W.T
+
 
 def generalized_procrustes_analysis_2D(X,Y,pi,output_params=True):
     """

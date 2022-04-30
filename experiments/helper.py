@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import scanpy as sc
 from matplotlib import colors
 import sklearn
@@ -40,6 +41,18 @@ def plot_slice_umi(slice_, figsize=None, ax=None, s=100):
         ax.invert_yaxis()
         ax.axis('off')
 
+
+def plot_slices_overlap(slices, layer_to_color_map=layer_to_color_map):
+    #plt.figure(figsize=(10,15))
+    plt.figure(figsize=(10,10))
+    for i in range(len(slices)):
+        adata = slices[i]
+        colors = list(adata.obs['layer_guess_reordered'].astype('str').map(layer_to_color_map))
+        plt.scatter(adata.obsm['spatial'][:,0],adata.obsm['spatial'][:,1],linewidth=0,s=100, marker=".",color=colors)
+    plt.legend(handles=[mpatches.Patch(color=layer_to_color_map[adata.obs['layer_guess_reordered'].cat.categories[i]], label=adata.obs['layer_guess_reordered'].cat.categories[i]) for i in range(len(adata.obs['layer_guess_reordered'].cat.categories))],fontsize=10,title='Cortex layer',title_fontsize=15,bbox_to_anchor=(1, 1))
+    plt.gca().invert_yaxis()
+    plt.axis('off')
+    plt.show()
 
 
 def compute_alignment_ari(sliceA, sliceB, pi):

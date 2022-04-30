@@ -2,9 +2,10 @@ import numpy as np
 import scanpy as sc
 from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
 from src.paste.fractional_align import partial_pairwise_align, partial_pairwise_align_paste_init
-from experiments.helper import plot_slice, plot_slice_umi, compute_alignment_ari
+from experiments.helper import plot_slice, plot_slice_umi, compute_alignment_ari, plot_slices_overlap
 import matplotlib.pyplot as plt
 import src.paste.PASTE as paste
+from src.paste.visualization import partial_stack_slices_pairwise, stack_slices_pairwise
 
 
 
@@ -184,12 +185,11 @@ def check_mapped_partial_region_realdata(sliceA_filename, sliceB_filename, m, al
     sliceB = sc.read_h5ad(sliceB_filename)
     maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
     plot_slice(sliceA)
-    # plot_slice_umi(sliceA)
+    plot_slice_umi(sliceA)
     plot_slice(sliceB)
-    # plot_slice_umi(sliceB)
+    plot_slice_umi(sliceB)
 
-    # pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
-    pi, log = partial_pairwise_align_paste_init(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
     print(pi.shape)
     print("Total mass transported is: " + str(np.sum(pi)))
     print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
@@ -203,7 +203,14 @@ def check_mapped_partial_region_realdata(sliceA_filename, sliceB_filename, m, al
     plot_slice(going_out_part)
     plot_slice(coming_in_part)
 
+    """
+    stacking
+    """
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
     plt.show()
+
 
 
 def original_realdata(sliceA_filename, sliceB_filename, alpha, dissimilarity='kl', norm=True):
@@ -213,6 +220,12 @@ def original_realdata(sliceA_filename, sliceB_filename, alpha, dissimilarity='kl
     plot_slice(sliceB)
     pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
     print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    """
+    stacking
+    """
+    new_slices = stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
 
     plt.show()
 
