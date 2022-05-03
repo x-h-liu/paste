@@ -36,10 +36,10 @@ def plot_slice_umi(slice_, figsize=None, ax=None, s=100):
         ax.axis('off')
 
 
-# filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_03.digital_expression.txt"
-# bead_location_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_03_bead_locations.csv"
-filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_02.digital_expression.txt"
-bead_location_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_02_bead_locations.csv"
+filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_03.digital_expression.txt"
+bead_location_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_03_bead_locations.csv"
+# filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_02.digital_expression.txt"
+# bead_location_filename = "/Users/xinhaoliu/Desktop/Research/Data/PASTE/mouse_embryo/Puck_190926_02_bead_locations.csv"
 adata = sc.read_text(filename, first_column_names=True).transpose()  # TODO maybe add spot names
 adata.obsm['spatial'] = np.loadtxt(bead_location_filename, delimiter=',', skiprows=1, usecols=(1, 2))
 sc.pp.calculate_qc_metrics(adata, inplace=True)
@@ -49,24 +49,29 @@ gene_expression_matrix = adata.X
 spot_umi_counts = np.sum(gene_expression_matrix, axis=1)
 adata.obs['sum_umi'] = spot_umi_counts
 
-# # remove outlier
-# to_keep = (spot_umi_counts < np.partition(spot_umi_counts, -10)[-10])
-# adata = adata[adata.obs.index[to_keep]]
+# remove outlier
+to_keep = (spot_umi_counts < np.partition(spot_umi_counts, -10)[-10])
+adata = adata[adata.obs.index[to_keep]]
 
 
-plot_slice_umi(adata)
-plt.figure()
-counts, edges, bars = plt.hist(adata.obs['sum_umi'])
-plt.bar_label(bars)
-plt.xlabel("UMI")
-plt.ylabel("Number of spots")
+# plot_slice_umi(adata)
+# plt.figure()
+# counts, edges, bars = plt.hist(adata.obs['sum_umi'])
+# plt.bar_label(bars)
+# plt.xlabel("UMI")
+# plt.ylabel("Number of spots")
+#
+#
+# plt.show()
 
 
-plt.show()
-
-
-
-
-
+gene_expression_matrix = adata.X
+spot_umi_counts = np.sum(gene_expression_matrix, axis=1)
+print(gene_expression_matrix.shape)
+print(spot_umi_counts.shape)
+print("mean UMI per spot is: " + str(np.mean(spot_umi_counts)))
+print("median UMI per spot is: " + str(np.median(spot_umi_counts)))
+print("max UMI per spot is: " + str(np.max(spot_umi_counts)))
+print("min UMI per spot is: " + str(np.min(spot_umi_counts)))
 
 
