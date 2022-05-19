@@ -1,8 +1,9 @@
 import numpy as np
 import scipy
 import ot
-# from .glmpca import glmpca
-from src.paste.glmpca import glmpca
+from .glmpca import glmpca
+# from src.paste.glmpca import glmpca
+# from glmpca import glmpca
 import time
 import anndata as ad
 import scanpy as sc

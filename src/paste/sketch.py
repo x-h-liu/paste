@@ -1,14 +1,16 @@
 import numpy
 import numpy as np
 import scanpy as sc
-from src.paste.helper import to_dense_array, extract_data_matrix
+# from src.paste.helper import to_dense_array, extract_data_matrix
+from helper import to_dense_array, extract_data_matrix
 
 
 # gene_umi_counts = np.array([0, 5, 4, 3, 3, 2, 7, 9])
 # print(np.sort((-gene_umi_counts).argsort()[:3]))
 
 
-sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674.h5ad'
+# sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674.h5ad'
+sliceA_filename = '/n/fs/ragr-data/users/xinhao/DLPFC/151674.h5ad'
 sliceA = sc.read_h5ad(sliceA_filename)
 gene_expression_matrix = to_dense_array(extract_data_matrix(sliceA, None))
 
