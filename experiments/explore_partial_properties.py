@@ -1,7 +1,7 @@
 import numpy as np
 import scanpy as sc
 from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
-from src.paste.fractional_align import partial_pairwise_align, partial_pairwise_align_paste_init
+from src.paste.fractional_align import partial_pairwise_align
 from experiments.helper import plot_slice, plot_slice_umi, compute_alignment_ari, plot_slices_overlap
 import matplotlib.pyplot as plt
 import src.paste.PASTE as paste
@@ -29,8 +29,8 @@ def check_mapped_partial_region(sliceA_filename, sliceB_filename, m, alpha, armi
     # plot_slice_umi(sliceA[common_spots])
 
 
-    # pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
-    pi, log = partial_pairwise_align_paste_init(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
+    #pi, log = partial_pairwise_align_paste_init(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True, matched_spots=matched_spots)
     print(pi.shape)
     print("Objective cost of the optimized alignment is %f" % log)
     print("Total mass transported is: " + str(np.sum(pi)))

@@ -123,7 +123,8 @@ def initialization(M, p, q, m):
 
 def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, loss_fun='square_loss', armijo=False, log=False, verbose=False, numItermax=1000, tol=1e-7, stopThr=1e-9, stopThr2=1e-9):
     if m is None:
-        m = np.min((np.sum(p), np.sum(q)))
+        # m = np.min((np.sum(p), np.sum(q)))
+        raise ValueError("Parameter m is not provided.")
     elif m < 0:
         raise ValueError("Problem infeasible. Parameter m should be greater"
                          " than 0.")
@@ -231,7 +232,7 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         return G0[:len(p), :len(q)]
 
 
-def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
+def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
                    b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, matched_spots=None, **kwargs):
     """
     Calculates and returns optimal alignment of two slices.
@@ -350,33 +351,8 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissi
 
 
 
-def partial_pairwise_align_paste_init(sliceA, sliceB, alpha=0.1, m=None, armijo=True, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
-                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, matched_spots=None, **kwargs):
-    """
-    Calculates and returns optimal alignment of two slices.
-
-    param: sliceA - AnnData object
-    param: sliceB - AnnData object
-    param: alpha - Alignment tuning parameter. Note: 0 ≤ alpha ≤ 1
-    param: dissimilarity - Expression dissimilarity measure: 'kl' or 'euclidean'
-    param: use_rep - If none, uses slice.X to calculate dissimilarity between spots, otherwise uses the representation given by slice.obsm[use_rep]
-    param: G_init - initial mapping to be used in FGW-OT, otherwise default is uniform mapping
-    param: a_distribution - distribution of sliceA spots (1-d numpy array), otherwise default is uniform
-    param: b_distribution - distribution of sliceB spots (1-d numpy array), otherwise default is uniform
-    param: numItermax - max number of iterations during FGW-OT
-    param: norm - scales spatial distances such that neighboring spots are at distance 1 if True, otherwise spatial distances remain unchanged
-    param: return_obj - returns objective function output of FGW-OT if True, nothing if False
-    param: verbose - FGW-OT is verbose if True, nothing if False
-
-    return: pi - alignment of spots
-    return: log['fgw_dist'] - objective function output of FGW-OT
-    """
-
-    if G_init is None:
-        print("Initializing search with PASTE...")
-        G_init = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity='kl', norm=True, verbose=True)
-        print("Initialization finished")
-
+def partial_pairwise_align_given_cost_matrix(sliceA, sliceB, M, alpha=0.1, m=None, armijo=False, G_init=None, a_distribution=None,
+                   b_distribution=None, norm=True, return_obj=False, verbose=False, matched_spots=None, **kwargs):
     # subset for common genes
     common_genes = intersect(sliceA.var.index, sliceB.var.index)
     sliceA = sliceA[:, common_genes]
@@ -386,34 +362,6 @@ def partial_pairwise_align_paste_init(sliceA, sliceB, alpha=0.1, m=None, armijo=
     # Calculate spatial distances
     D_A = distance.cdist(sliceA.obsm['spatial'], sliceA.obsm['spatial'])
     D_B = distance.cdist(sliceB.obsm['spatial'], sliceB.obsm['spatial'])
-
-    # Calculate expression dissimilarity
-    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
-    if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
-        M = distance.cdist(A_X, B_X)
-    elif dissimilarity.lower() == 'gkl':
-        s_A = A_X + 0.01
-        s_B = B_X + 0.01
-        M = generalized_kl_divergence(s_A, s_B)
-        M /= M[M > 0].max()
-        M *= 10
-    elif dissimilarity.lower() == 'kl':
-        s_A = A_X + 0.01
-        s_B = B_X + 0.01
-        M = kl_divergence(s_A, s_B)
-    elif dissimilarity.lower() == 'selection_kl':
-        M = high_umi_gene_distance(A_X, B_X, 2000)
-    elif dissimilarity.lower() == "pca":
-        #M = pca_distance(sliceA, sliceB, 2000, 100)
-        M = pca_distance(sliceA, sliceB, 2000, 20)
-    elif dissimilarity.lower() == 'glmpca':
-        #M = glmpca_distance(A_X, B_X, latent_dim=20, filter=True)
-        M = glmpca_distance(A_X, B_X, latent_dim=50, filter=True)
-    elif dissimilarity.lower() == 'glmpca2':
-        M = glmpca_distance2(sliceA, sliceB, latent_dim=20, use_rep=use_rep)
-    else:
-        print("ERROR")
-        exit(1)
 
     # init distributions
     if a_distribution is None:
@@ -434,26 +382,14 @@ def partial_pairwise_align_paste_init(sliceA, sliceB, alpha=0.1, m=None, armijo=
         Code for normalizing distance matrix
         """
         D_A /= D_A[D_A>0].max()
-        #D_A *= 10
         D_A *= M.max()
         D_B /= D_B[D_B>0].max()
-        #D_B *= 10
         D_B *= M.max()
         """
         Code for normalizing distance matrix ends
         """
-    # print(M)
-    # print(D_A)
-    # print(D_B)
-    # print(M.min())
-    # print(M.max())
-    # print(D_A.max())
-    # print(D_B.max())
-    # exit()
 
-    # Run OT
-    # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
-    #                                                   numItermax=numItermax, verbose=verbose)
+    # Run Partial OT
     pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
 
     if matched_spots:
@@ -470,5 +406,4 @@ def partial_pairwise_align_paste_init(sliceA, sliceB, alpha=0.1, m=None, armijo=
     if return_obj:
         return pi, log['partial_fgw_cost']
     return pi
-
 
