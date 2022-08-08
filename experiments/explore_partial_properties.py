@@ -1,8 +1,8 @@
 import numpy as np
 import scanpy as sc
 from src.paste.helper import kl_divergence, intersect, to_dense_array, extract_data_matrix
-from src.paste.fractional_align import partial_pairwise_align
-from experiments.helper import plot_slice, plot_slice_umi, compute_alignment_ari, plot_slices_overlap
+from src.paste.fractional_align import partial_pairwise_align, partial_pairwise_align_RGB_only, partial_pairwise_align_expression_and_rgb
+from experiments.helper import plot_slice, plot_slice_pairwise_alignment_mappingcolor, plot_slice_pairwise_alignment, plot_slice_umi, compute_alignment_ari, plot_slices_overlap
 import matplotlib.pyplot as plt
 import src.paste.PASTE as paste
 from src.paste.visualization import partial_stack_slices_pairwise, stack_slices_pairwise
@@ -231,3 +231,137 @@ def original_realdata(sliceA_filename, sliceB_filename, alpha, dissimilarity='kl
 
 
 
+"""
+Code for testing image alignment on DLPFC
+"""
+def image_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+
+    pi, log = partial_pairwise_align_RGB_only(sliceA, sliceB, alpha=0.1, m=m, armijo=False, norm=True, return_obj=True, verbose=True)
+    print(pi.shape)
+    print("Total mass transported is: " + str(np.sum(pi)))
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    going_out = np.sum(pi, axis=1) > 0
+    coming_in = np.sum(pi, axis=0) > 0
+    going_out_part = sliceA[sliceA.obs.index[going_out]]
+    coming_in_part = sliceB[sliceB.obs.index[coming_in]]
+    plot_slice(going_out_part)
+    plot_slice(coming_in_part)
+
+    # Alignment visualization
+    source_split = []
+    source_mass = np.sum(pi, axis=1)
+    for i in range(len(source_mass)):
+        if source_mass[i] > 0:
+            source_split.append("true")
+        else:
+            source_split.append("false")
+    sliceA.obs["aligned"] = source_split
+    target_split = []
+    target_mass = np.sum(pi, axis=0)
+    for i in range(len(target_mass)):
+        if target_mass[i] > 0:
+            target_split.append("true")
+        else:
+            target_split.append("false")
+    sliceB.obs["aligned"] = target_split
+    plot_slice_pairwise_alignment_mappingcolor(sliceA, sliceB, pi)
+
+    # Stacking
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()
+
+
+def expression_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+    print(pi.shape)
+    print("Total mass transported is: " + str(np.sum(pi)))
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    going_out = np.sum(pi, axis=1) > 0
+    coming_in = np.sum(pi, axis=0) > 0
+    going_out_part = sliceA[sliceA.obs.index[going_out]]
+    coming_in_part = sliceB[sliceB.obs.index[coming_in]]
+    plot_slice(going_out_part)
+    plot_slice(coming_in_part)
+
+    # Alignment visualization
+    source_split = []
+    source_mass = np.sum(pi, axis=1)
+    for i in range(len(source_mass)):
+        if source_mass[i] > 0:
+            source_split.append("true")
+        else:
+            source_split.append("false")
+    sliceA.obs["aligned"] = source_split
+    target_split = []
+    target_mass = np.sum(pi, axis=0)
+    for i in range(len(target_mass)):
+        if target_mass[i] > 0:
+            target_split.append("true")
+        else:
+            target_split.append("false")
+    sliceB.obs["aligned"] = target_split
+    plot_slice_pairwise_alignment_mappingcolor(sliceA, sliceB, pi)
+
+    # Stacking
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()
+
+
+def expression_and_image_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+
+    pi, log = partial_pairwise_align_expression_and_rgb(sliceA, sliceB, alpha=0.1, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+    print(pi.shape)
+    print("Total mass transported is: " + str(np.sum(pi)))
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    going_out = np.sum(pi, axis=1) > 0
+    coming_in = np.sum(pi, axis=0) > 0
+    going_out_part = sliceA[sliceA.obs.index[going_out]]
+    coming_in_part = sliceB[sliceB.obs.index[coming_in]]
+    plot_slice(going_out_part)
+    plot_slice(coming_in_part)
+
+    # Alignment visualization
+    source_split = []
+    source_mass = np.sum(pi, axis=1)
+    for i in range(len(source_mass)):
+        if source_mass[i] > 0:
+            source_split.append("true")
+        else:
+            source_split.append("false")
+    sliceA.obs["aligned"] = source_split
+    target_split = []
+    target_mass = np.sum(pi, axis=0)
+    for i in range(len(target_mass)):
+        if target_mass[i] > 0:
+            target_split.append("true")
+        else:
+            target_split.append("false")
+    sliceB.obs["aligned"] = target_split
+    plot_slice_pairwise_alignment_mappingcolor(sliceA, sliceB, pi)
+    plot_slice_pairwise_alignment(sliceA, sliceB, pi)
+
+    # Stacking
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()

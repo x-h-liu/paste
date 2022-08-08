@@ -3,9 +3,9 @@ import numpy as np
 from scipy.stats import entropy
 import scanpy as sc
 # from src.paste.helper import to_dense_array, extract_data_matrix
-from helper import to_dense_array, extract_data_matrix
-from src.paste.fractional_align import partial_pairwise_align
-from experiments.helper import plot_slice_pairwise_alignment
+# from helper import to_dense_array, extract_data_matrix
+# from src.paste.fractional_align import partial_pairwise_align
+# from experiments.helper import plot_slice_pairwise_alignment
 
 
 # gene_umi_counts = np.array([0, 5, 4, 3, 3, 2, 7, 9])
@@ -37,10 +37,34 @@ from experiments.helper import plot_slice_pairwise_alignment
 # plot_slice_pairwise_alignment(sliceA, sliceB, pi)
 
 
-probs = [0, 12, 12]
-# h = 0
-# for i in probs:
-#     h += -i * np.log(i)
-#
-# print(h)
-print(entropy(probs))
+# probs = [0, 12, 12]
+# # h = 0
+# # for i in probs:
+# #     h += -i * np.log(i)
+# #
+# # print(h)
+# print(entropy(probs))
+
+# lst = ["a", "b", "c", "d"]
+# for i in range(len(lst) - 1, -1, -1):
+#     print(i)
+#     print(lst[i])
+
+
+# A = np.asarray([[1,2,3],[4,5,6], [7,8,9]])
+# # print(np.mean(A, axis=0))
+# # print((A - np.mean(A, axis=0)) / np.std(A, axis=0))
+
+# print(A)
+# print(A[0,:])
+# A += np.array([1, 1, 1])
+# print(A)
+
+
+
+lst = ['a', 'b', 'c', 'd', 'e']
+
+for i in range(len(lst) - 1, -1, -1):
+    print(lst[i])
+
+

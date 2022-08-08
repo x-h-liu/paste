@@ -1,11 +1,14 @@
 from src.paste.fractional_align import partial_pairwise_align
-from experiments.helper import compute_alignment_ari
-from experiments.explore_partial_properties import plot_slice_pairwise_alignment
+from experiments.helper import plot_slice, plot_slice_pairwise_alignment_mappingcolor, plot_slice_pairwise_alignment, compute_alignment_ari, plot_slices_overlap
+from src.paste.visualization import partial_stack_slices_pairwise, stack_slices_pairwise
+import src.paste.PASTE as paste
+
+
 import scanpy as sc
 import numpy as np
 import pandas as pd
 import scipy
-import src.paste.PASTE as paste
+import matplotlib.pyplot as plt
 
 
 def mapping_accuracy(labels1, labels2, pi):
@@ -66,17 +69,80 @@ def max_accuracy(labels1, labels2):
 
 # sliceA_filename = "/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151508.h5ad"
 # sliceB_filename = "/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151509.h5ad"
-sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151670.h5ad'
-sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151671.h5ad'
-sliceA = sc.read_h5ad(sliceA_filename)
-sliceB = sc.read_h5ad(sliceB_filename)
+# sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151670.h5ad'
+# sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151671.h5ad'
+# sliceA = sc.read_h5ad(sliceA_filename)
+# sliceB = sc.read_h5ad(sliceB_filename)
 
-partial_pi, partial_log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=0.5, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
-full_pi, full_log = paste.pairwise_align(sliceA, sliceB, alpha=0.1, dissimilarity='kl', norm=True, return_obj=True, verbose=True)
-partial_ari = compute_alignment_ari(sliceA, sliceB, partial_pi)
-full_ari = compute_alignment_ari(sliceA, sliceB, full_pi)
-print("partial ari is: " + str(partial_ari))
-print("full ari is: " + str(full_ari))
-plot_slice_pairwise_alignment(sliceA, sliceB, partial_pi)
+# partial_pi, partial_log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=0.5, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+# full_pi, full_log = paste.pairwise_align(sliceA, sliceB, alpha=0.1, dissimilarity='kl', norm=True, return_obj=True, verbose=True)
+# partial_ari = compute_alignment_ari(sliceA, sliceB, partial_pi)
+# full_ari = compute_alignment_ari(sliceA, sliceB, full_pi)
+# print("partial ari is: " + str(partial_ari))
+# print("full ari is: " + str(full_ari))
+# plot_slice_pairwise_alignment(sliceA, sliceB, partial_pi)
 
 
+
+def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+    print(pi.shape)
+    print("Total mass transported is: " + str(np.sum(pi)))
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+
+    going_out = np.sum(pi, axis=1) > 0
+    coming_in = np.sum(pi, axis=0) > 0
+    going_out_part = sliceA[sliceA.obs.index[going_out]]
+    coming_in_part = sliceB[sliceB.obs.index[coming_in]]
+    plot_slice(going_out_part)
+    plot_slice(coming_in_part)
+
+    # Alignment visualization
+    source_split = []
+    source_mass = np.sum(pi, axis=1)
+    for i in range(len(source_mass)):
+        if source_mass[i] > 0:
+            source_split.append("true")
+        else:
+            source_split.append("false")
+    sliceA.obs["aligned"] = source_split
+    target_split = []
+    target_mass = np.sum(pi, axis=0)
+    for i in range(len(target_mass)):
+        if target_mass[i] > 0:
+            target_split.append("true")
+        else:
+            target_split.append("false")
+    sliceB.obs["aligned"] = target_split
+    plot_slice_pairwise_alignment_mappingcolor(sliceA, sliceB, pi)
+    plot_slice_pairwise_alignment(sliceA, sliceB, pi)
+
+    # Stacking
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()
+
+
+
+def full_alignment_dlpfc(sliceA_filename, sliceB_filename):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    plot_slice(sliceA)
+    plot_slice(sliceB)
+    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=0.1, dissimilarity='kl', norm=True, return_obj=True, verbose=True)
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+    plot_slice_pairwise_alignment(sliceA, sliceB, pi)
+
+    """
+    stacking
+    """
+    new_slices = stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()

@@ -8,7 +8,7 @@ import math
 from scipy.spatial import ConvexHull
 from matplotlib.path import Path
 
-from mapped_region import plot_slice_mapping
+# from mapped_region import plot_slice_mapping
 
 
 def create_graph(adata, degree=4):

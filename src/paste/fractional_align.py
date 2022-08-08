@@ -407,3 +407,158 @@ def partial_pairwise_align_given_cost_matrix(sliceA, sliceB, M, alpha=0.1, m=Non
         return pi, log['partial_fgw_cost']
     return pi
 
+
+
+
+
+def partial_pairwise_align_RGB_only(sliceA, sliceB, alpha=0.1, m=None, armijo=False, G_init=None, a_distribution=None,
+                   b_distribution=None, norm=True, return_obj=False, verbose=False, matched_spots=None, **kwargs):
+    # subset for common genes
+    common_genes = intersect(sliceA.var.index, sliceB.var.index)
+    sliceA = sliceA[:, common_genes]
+    sliceB = sliceB[:, common_genes]
+    # print('Filtered all slices for common genes. There are ' + str(len(common_genes)) + ' common genes.')
+
+    # Calculate spatial distances
+    D_A = distance.cdist(sliceA.obsm['spatial'], sliceA.obsm['spatial'])
+    D_B = distance.cdist(sliceB.obsm['spatial'], sliceB.obsm['spatial'])
+
+    # Calculate RGB dissimilarity
+    # M = distance.cdist(sliceA.obsm['rgb'], sliceB.obsm['rgb'])
+    sliceA_rgb = (sliceA.obsm['rgb'] - np.mean(sliceA.obsm['rgb'], axis=0)) / np.std(sliceA.obsm['rgb'], axis=0)
+    sliceB_rgb = (sliceB.obsm['rgb'] - np.mean(sliceB.obsm['rgb'], axis=0)) / np.std(sliceB.obsm['rgb'], axis=0)
+    M = distance.cdist(sliceA_rgb, sliceB_rgb)
+
+    # init distributions
+    if a_distribution is None:
+        a = np.ones((sliceA.shape[0],)) / sliceA.shape[0]
+    else:
+        a = a_distribution
+
+    if b_distribution is None:
+        b = np.ones((sliceB.shape[0],)) / sliceB.shape[0]
+    else:
+        b = b_distribution
+
+    if norm:
+        D_A /= D_A[D_A > 0].min().min()
+        D_B /= D_B[D_B > 0].min().min()
+
+        """
+        Code for normalizing distance matrix
+        """
+        D_A /= D_A[D_A>0].max()
+        #D_A *= 10
+        D_A *= M.max()
+        D_B /= D_B[D_B>0].max()
+        #D_B *= 10
+        D_B *= M.max()
+        """
+        Code for normalizing distance matrix ends
+        """
+    
+    # Run Partial OT
+    pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
+
+    if matched_spots:
+        true_pi = np.zeros(pi.shape)
+        for (source_idx, dest_idx) in matched_spots:
+            true_pi[source_idx][dest_idx] = min([a[source_idx], b[dest_idx]])
+        true_pi_value = fgwloss_partial(alpha, M, D_A, D_B, true_pi, loss_fun='square_loss')
+        print("Objective cost of the true alignment is %f" % true_pi_value)
+        accuracy = 0
+        for matched_spot in matched_spots:
+            accuracy += true_pi[matched_spot[0]][matched_spot[1]]
+        print("Accuracy of the true alignment is %f" % accuracy)
+
+    if return_obj:
+        return pi, log['partial_fgw_cost']
+    return pi
+
+
+
+
+def partial_pairwise_align_expression_and_rgb(sliceA, sliceB, alpha=0.1, m=None, armijo=False, dissimilarity='glmpca', use_rep=None, G_init=None, a_distribution=None,
+                   b_distribution=None, norm=True, return_obj=False, verbose=False, matched_spots=None, **kwargs):
+    # subset for common genes
+    common_genes = intersect(sliceA.var.index, sliceB.var.index)
+    sliceA = sliceA[:, common_genes]
+    sliceB = sliceB[:, common_genes]
+    # print('Filtered all slices for common genes. There are ' + str(len(common_genes)) + ' common genes.')
+
+    # Calculate spatial distances
+    D_A = distance.cdist(sliceA.obsm['spatial'], sliceA.obsm['spatial'])
+    D_B = distance.cdist(sliceB.obsm['spatial'], sliceB.obsm['spatial'])
+
+    # Calculate expression dissimilarity
+    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
+    if dissimilarity.lower() == 'euclidean' or dissimilarity.lower() == 'euc':
+        M_exp = distance.cdist(A_X, B_X)
+    elif dissimilarity.lower() == 'kl':
+        s_A = A_X + 0.01
+        s_B = B_X + 0.01
+        M_exp = kl_divergence(s_A, s_B)
+    elif dissimilarity.lower() == 'glmpca':
+        M_exp = glmpca_distance(A_X, B_X, latent_dim=50, filter=True)
+    else:
+        print("ERROR")
+        exit(1)
+
+    # Calculate RGB dissimilarity
+    # sliceA_rgb = (sliceA.obsm['rgb'] - np.mean(sliceA.obsm['rgb'], axis=0)) / np.std(sliceA.obsm['rgb'], axis=0)
+    # sliceB_rgb = (sliceB.obsm['rgb'] - np.mean(sliceB.obsm['rgb'], axis=0)) / np.std(sliceB.obsm['rgb'], axis=0)
+    M_rgb = distance.cdist(sliceA.obsm['rgb'], sliceB.obsm['rgb'])
+    # M_rgb = distance.cdist(sliceA_rgb, sliceB_rgb)
+
+    # Scale M_exp and M_rgb, obtain M by taking half from each
+    M_rgb /= M_rgb[M_rgb > 0].max()
+    M_rgb *= M_exp.max()
+    # M_exp /= M_exp[M_exp > 0].max()
+    # M_rgb /= M_rgb[M_rgb > 0].max()
+    M = 0.5 * M_exp + 0.5 * M_rgb
+
+    # init distributions
+    if a_distribution is None:
+        a = np.ones((sliceA.shape[0],)) / sliceA.shape[0]
+    else:
+        a = a_distribution
+
+    if b_distribution is None:
+        b = np.ones((sliceB.shape[0],)) / sliceB.shape[0]
+    else:
+        b = b_distribution
+
+    if norm:
+        D_A /= D_A[D_A > 0].min().min()
+        D_B /= D_B[D_B > 0].min().min()
+
+        """
+        Code for normalizing distance matrix
+        """
+        D_A /= D_A[D_A>0].max()
+        #D_A *= 10
+        D_A *= M.max()
+        D_B /= D_B[D_B>0].max()
+        #D_B *= 10
+        D_B *= M.max()
+        """
+        Code for normalizing distance matrix ends
+        """
+
+    # Run OT
+    pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
+
+    if matched_spots:
+        true_pi = np.zeros(pi.shape)
+        for (source_idx, dest_idx) in matched_spots:
+            true_pi[source_idx][dest_idx] = min([a[source_idx], b[dest_idx]])
+        true_pi_value = fgwloss_partial(alpha, M, D_A, D_B, true_pi, loss_fun='square_loss')
+        print("Objective cost of the true alignment is %f" % true_pi_value)
+        accuracy = 0
+        for matched_spot in matched_spots:
+            accuracy += true_pi[matched_spot[0]][matched_spot[1]]
+        print("Accuracy of the true alignment is %f" % accuracy)
+
+    if return_obj:
+        return pi, log['partial_fgw_cost']
+    return pi

@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, '/n/fs/ragr-research/users/xinhao/workspace/code/paste')
+
 import numpy as np
 import scanpy as sc
 import anndata as ad
@@ -60,7 +63,7 @@ from experiments.helper import compute_alignment_ari
 # print(maximum_possible_accuracy)
 
 
-def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha, dissimilarity):
+def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
     maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
@@ -72,7 +75,7 @@ def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha, dissi
     for spot in common_spots:
         matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
 
-    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity=dissimilarity, norm=True, return_obj=True, verbose=True)
+    pi, log = paste.pairwise_align(sliceA, sliceB, alpha=alpha, dissimilarity='kl', norm=False, return_obj=True, verbose=True)
     # print("Alignment value is: " + str(log))
     # for loss in log['loss']:
     #     print(loss)
@@ -85,89 +88,53 @@ def original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha, dissi
     return accuracy, maximum_possible_accuracy, ari
 
 
-# accuracy, maximum_possible_accuracy = original_paste_pairwise_align('/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleFalse_row0_col1.h5ad',
-#                               '/Users/xinhaoliu/Desktop/Research/Data/PASTE/Share/151674_overlap1.5_dropFalse_rotateFalse_reampleFalse_row1_col1.h5ad')
-#
-# print(accuracy, maximum_possible_accuracy)
-
-
-# to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1))]
-# #to_align = [((0, 0), (0, 1)), ((0, 0), (1, 0)), ((0, 1), (1, 1)), ((1, 0), (1, 1)), ((0, 0), (1, 1)), ((0, 1), (1, 0))]
-# #to_align = [((0, 0), (1, 0))]
-# for pair in to_align:
-#     sliceA_row = pair[0][0]
-#     sliceA_col = pair[0][1]
-#     sliceB_row = pair[1][0]
-#     sliceB_col = pair[1][1]
-#     # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
-#     #                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-#     # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Data/PASTE/delta1/151674_overlap1.5_dropFalse_rotateFalse_reampleTrue_delta1_row' \
-#     #                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-#     sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674_overlap0.3_dropFalse_rotateFalse_resampleTrue_delta0.5_row' \
-#                       + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-#     sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/151674_overlap0.3_dropFalse_rotateFalse_resampleTrue_delta0.5_row' \
-#                       + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-#     print("=======================")
-#     print(pair)
-#     accuracy, maximum_possible_accuracy = original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha=0.05, dissimilarity='kl')
-#     print("Alignment accuracy is: " + str(accuracy))
-#     print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
-
-
 """
 Code for bulk running Original
 """
-# overlap_to_run = [0.9, 0.7, 0.5, 0.3]
-# delta_to_run = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0]
-# # delta_to_run = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-# # alpha_to_run = [0.0, 0.05, 0.1, 0.2]
-# alpha_to_run = [0.1]
-# to_align = [((0, 0), (1, 0))]
-#
-# overlap_alpha_to_delta_accuracy = {}
-# overlap_alpha_to_delta_ari = {}
-# for overlap in overlap_to_run:
-#     overlap_alpha_to_delta_accuracy[overlap] = {}
-#     overlap_alpha_to_delta_ari[overlap] = {}
-#     for alpha in alpha_to_run:
-#         overlap_alpha_to_delta_accuracy[overlap][alpha] = []
-#         overlap_alpha_to_delta_ari[overlap][alpha] = []
-#         for delta in delta_to_run:
-#             for pair in to_align:
-#                 sliceA_row = pair[0][0]
-#                 sliceA_col = pair[0][1]
-#                 sliceB_row = pair[1][0]
-#                 sliceB_col = pair[1][1]
-#                 sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/pca/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-#                                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-#                 sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/pca/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-#                                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-#                 # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-#                 #                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-#                 # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-#                 #                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-#                 print("=======================")
-#                 # print(pair)
-#                 print("Overlap={0}, Alpha={1}, Delta={2}".format(overlap, alpha, delta))
-#                 accuracy, maximum_possible_accuracy, ari = original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha=alpha, dissimilarity='kl')
-#                 print("Alignment accuracy is: " + str(accuracy))
-#                 print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
-#                 print("ARI is: " + str(ari))
-#                 overlap_alpha_to_delta_accuracy[overlap][alpha].append(accuracy)
-#                 overlap_alpha_to_delta_ari[overlap][alpha].append(ari)
-#
-#
-# print("\n****************************************************************************")
-# print("Accuracy")
-# for overlap in overlap_alpha_to_delta_accuracy:
-#     for alpha in overlap_alpha_to_delta_accuracy[overlap]:
-#         print(overlap, alpha)
-#         print(overlap_alpha_to_delta_accuracy[overlap][alpha])
-# print("ARI")
-# for overlap in overlap_alpha_to_delta_ari:
-#     for alpha in overlap_alpha_to_delta_ari[overlap]:
-#         print(overlap, alpha)
-#         print(overlap_alpha_to_delta_ari[overlap][alpha])
+overlap_to_run = [0.9, 0.7, 0.5, 0.3]
+delta_to_run = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0]
+alpha_to_run = [0.1]
+to_align = [((0, 0), (1, 0))]
+
+overlap_alpha_to_delta_accuracy = {}
+overlap_alpha_to_delta_ari = {}
+for overlap in overlap_to_run:
+    overlap_alpha_to_delta_accuracy[overlap] = {}
+    overlap_alpha_to_delta_ari[overlap] = {}
+    for alpha in alpha_to_run:
+        overlap_alpha_to_delta_accuracy[overlap][alpha] = []
+        overlap_alpha_to_delta_ari[overlap][alpha] = []
+        for delta in delta_to_run:
+            for pair in to_align:
+                sliceA_row = pair[0][0]
+                sliceA_col = pair[0][1]
+                sliceB_row = pair[1][0]
+                sliceB_col = pair[1][1]
+                sliceA_filename = '/n/fs/ragr-data/users/xinhao/DLPFC/sim/single_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+                                  + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
+                sliceB_filename = '/n/fs/ragr-data/users/xinhao/DLPFC/sim/single_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+                                  + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
+                print("=======================")
+                print("Overlap={0}, Alpha={1}, Delta={2}".format(overlap, alpha, delta))
+                accuracy, maximum_possible_accuracy, ari = original_paste_pairwise_align(sliceA_filename, sliceB_filename, alpha=alpha)
+                print("Alignment accuracy is: " + str(accuracy))
+                print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
+                print("ARI is: " + str(ari))
+                overlap_alpha_to_delta_accuracy[overlap][alpha].append(accuracy)
+                overlap_alpha_to_delta_ari[overlap][alpha].append(ari)
+
+
+print("\n****************************************************************************")
+print("Accuracy")
+for overlap in overlap_alpha_to_delta_accuracy:
+    for alpha in overlap_alpha_to_delta_accuracy[overlap]:
+        print(overlap, alpha)
+        print(overlap_alpha_to_delta_accuracy[overlap][alpha])
+print("ARI")
+for overlap in overlap_alpha_to_delta_ari:
+    for alpha in overlap_alpha_to_delta_ari[overlap]:
+        print(overlap, alpha)
+        print(overlap_alpha_to_delta_ari[overlap][alpha])
 
 """
 Code for bulk running Original ends
@@ -175,7 +142,7 @@ Code for bulk running Original ends
 
 
 
-def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, armijo=False, dissimilarity='glmpca', norm=True):
+def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
     maximum_num_spots = max(sliceA.shape[0], sliceB.shape[0])
@@ -187,7 +154,7 @@ def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, arm
     for spot in common_spots:
         matched_spots.append((spotnamesA.get_loc(spot), spotnamesB.get_loc(spot)))
 
-    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=armijo, dissimilarity=dissimilarity, norm=norm, return_obj=True, verbose=True)
+    pi, log = partial_pairwise_align(sliceA, sliceB, alpha=alpha, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=False)
     # print("Alignment value is: " + str(log))
     # for loss in log['loss']:
     #     print(loss)
@@ -234,61 +201,60 @@ def partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m, alpha, arm
 """
 Code for bulk running Partial
 """
-overlap_to_run = [0.9, 0.7, 0.5, 0.3]
-delta_to_run = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0]
-alpha_to_run = [0.1]
-#alpha_to_run = [0.1, 0.2, 0.3]
-to_align = [((0, 0), (1, 0))]
+# # overlap_to_run = [0.9, 0.7, 0.5, 0.3]
+# overlap_to_run = [0.3]
+# delta_to_run = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0]
+# alpha_to_run = [1.0]
+# to_align = [((0, 0), (1, 0))]
 
-print("latent dim = 50， alpha0.1, pcasingleresample")
-overlap_alpha_to_delta_accuracy = {}
-overlap_alpha_to_delta_ari = {}
-for overlap in overlap_to_run:
-    overlap_alpha_to_delta_accuracy[overlap] = {}
-    overlap_alpha_to_delta_ari[overlap] = {}
-    for alpha in alpha_to_run:
-        overlap_alpha_to_delta_accuracy[overlap][alpha] = []
-        overlap_alpha_to_delta_ari[overlap][alpha] = []
-        for delta in delta_to_run:
-            for pair in to_align:
-                sliceA_row = pair[0][0]
-                sliceA_col = pair[0][1]
-                sliceB_row = pair[1][0]
-                sliceB_col = pair[1][1]
-                sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/pca/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                                  + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-                sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/pca/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                                  + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-                # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/glmpca_special/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                #                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-                # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/glmpca_special/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                #                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-                # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                #                     + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
-                # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
-                #                     + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
-                print("=======================")
-                # print(pair)
-                print("Overlap={0}, Alpha={1}, Delta={2}".format(overlap, alpha, delta))
-                accuracy, maximum_possible_accuracy, ari = partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m=overlap, alpha=alpha, armijo=False, dissimilarity='glmpca', norm=True)
-                print("Alignment accuracy is: " + str(accuracy))
-                print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
-                print("ARI is: " + str(ari))
-                overlap_alpha_to_delta_accuracy[overlap][alpha].append(accuracy)
-                overlap_alpha_to_delta_ari[overlap][alpha].append(ari)
+# overlap_alpha_to_delta_accuracy = {}
+# overlap_alpha_to_delta_ari = {}
+# for overlap in overlap_to_run:
+#     overlap_alpha_to_delta_accuracy[overlap] = {}
+#     overlap_alpha_to_delta_ari[overlap] = {}
+#     for alpha in alpha_to_run:
+#         overlap_alpha_to_delta_accuracy[overlap][alpha] = []
+#         overlap_alpha_to_delta_ari[overlap][alpha] = []
+#         for delta in delta_to_run:
+#             for pair in to_align:
+#                 sliceA_row = pair[0][0]
+#                 sliceA_col = pair[0][1]
+#                 sliceB_row = pair[1][0]
+#                 sliceB_col = pair[1][1]
+#                 sliceA_filename = '/n/fs/ragr-data/users/xinhao/DLPFC/sim/single_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
+#                 sliceB_filename = '/n/fs/ragr-data/users/xinhao/DLPFC/sim/single_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
+#                 # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/glmpca_special/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                 #                   + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
+#                 # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/single_resample/glmpca_special/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                 #                   + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
+#                 # sliceA_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                 #                     + str(sliceA_row) + '_col' + str(sliceA_col) + '.h5ad'
+#                 # sliceB_filename = '/Users/xinhaoliu/Desktop/Research/Code/st_overlap_sim/sim/double_resample/151674_overlap' + str(overlap) + '_dropFalse_rotateFalse_resampleTrue_delta' + str(delta) + '_row' \
+#                 #                     + str(sliceB_row) + '_col' + str(sliceB_col) + '.h5ad'
+#                 print("=======================")
+#                 # print(pair)
+#                 print("Overlap={0}, Alpha={1}, Delta={2}".format(overlap, alpha, delta))
+#                 accuracy, maximum_possible_accuracy, ari = partial_paste_pairwise_align(sliceA_filename, sliceB_filename, m=overlap, alpha=alpha)
+#                 print("Alignment accuracy is: " + str(accuracy))
+#                 print("Maximum possible accuracy is: " + str(maximum_possible_accuracy))
+#                 print("ARI is: " + str(ari))
+#                 overlap_alpha_to_delta_accuracy[overlap][alpha].append(accuracy)
+#                 overlap_alpha_to_delta_ari[overlap][alpha].append(ari)
 
 
-print("\n****************************************************************************")
-print("Accuracy")
-for overlap in overlap_alpha_to_delta_accuracy:
-    for alpha in overlap_alpha_to_delta_accuracy[overlap]:
-        print(overlap, alpha)
-        print(overlap_alpha_to_delta_accuracy[overlap][alpha])
-print("ARI")
-for overlap in overlap_alpha_to_delta_ari:
-    for alpha in overlap_alpha_to_delta_ari[overlap]:
-        print(overlap, alpha)
-        print(overlap_alpha_to_delta_ari[overlap][alpha])
+# print("\n****************************************************************************")
+# print("Accuracy")
+# for overlap in overlap_alpha_to_delta_accuracy:
+#     for alpha in overlap_alpha_to_delta_accuracy[overlap]:
+#         print(overlap, alpha)
+#         print(overlap_alpha_to_delta_accuracy[overlap][alpha])
+# print("ARI")
+# for overlap in overlap_alpha_to_delta_ari:
+#     for alpha in overlap_alpha_to_delta_ari[overlap]:
+#         print(overlap, alpha)
+#         print(overlap_alpha_to_delta_ari[overlap][alpha])
 """
 Code for bulk running Partial ends
 """
