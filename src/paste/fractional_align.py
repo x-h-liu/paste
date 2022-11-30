@@ -5,6 +5,7 @@ from .helper import kl_divergence, intersect, to_dense_array, extract_data_matri
 from scipy.spatial import distance
 import random
 import src.paste.PASTE as paste
+import time
 
 
 def gwloss_partial(C1, C2, T, loss_fun='square_loss'):
@@ -253,7 +254,9 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, diss
     elif dissimilarity.lower() == 'selection_kl':
         M = high_umi_gene_distance(A_X, B_X, 2000)
     elif dissimilarity.lower() == 'glmpca':
+        start_time = time.time()
         M = glmpca_distance(A_X, B_X, latent_dim=50, filter=True, verbose=verbose)
+        print("GLMPCA total running time is %s seconds" % (time.time() - start_time))
     else:
         print("ERROR")
         exit(1)

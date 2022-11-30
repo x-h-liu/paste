@@ -12,6 +12,7 @@ import scipy
 import matplotlib.pyplot as plt
 from pamona import Pamona
 import tangram as tg
+import time
 
 
 def mapping_accuracy(labels1, labels2, pi):
@@ -93,7 +94,9 @@ def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m, B2A=False):
     plot_slice(sliceA)
     plot_slice(sliceB)
 
+    start_time = time.time()
     pi, log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
+    print("PASTE2 total running time is %s seconds" % (time.time() - start_time))
     print(pi.shape)
     print("Total mass transported is: " + str(np.sum(pi)))
     if B2A:
@@ -144,7 +147,9 @@ def full_alignment_dlpfc(sliceA_filename, sliceB_filename):
     sliceB = sc.read_h5ad(sliceB_filename)
     plot_slice(sliceA)
     plot_slice(sliceB)
+    start_time = time.time()
     pi, log = paste.pairwise_align(sliceA, sliceB, alpha=0.1, dissimilarity='kl', norm=True, return_obj=True, verbose=True)
+    print("PASTE running time is %s seconds" % (time.time() - start_time))
     print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
     plot_slice_pairwise_alignment(sliceA, sliceB, pi)
 
@@ -165,11 +170,13 @@ def pamona_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
     n_shared = int(max(A_spotnum, B_spotnum) * m)
     A_X, B_X = to_dense_array(extract_data_matrix(sliceA, None)), to_dense_array(extract_data_matrix(sliceB, None))
 
+    start_time = time.time()
     Pa = Pamona.Pamona(n_shared=[n_shared], output_dim=5)
     integrated_data, T = Pa.run_Pamona([A_X, B_X])
     pi = T[0][:A_spotnum, :B_spotnum]
     # n_shared_largest_value = np.partition(pi.flatten(), -n_shared)[-n_shared]
     # pi[pi < n_shared_largest_value] = 0
+    print("Pamona running time is %s seconds" % (time.time() - start_time))
 
     print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
     going_out = np.sum(pi, axis=1) > 0
@@ -211,11 +218,13 @@ def tangram_alignment_dlpfc(sliceA_filename, sliceB_filename):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
 
+    start_time = time.time()
     ad_sc = sliceA.copy()
     ad_sp = sliceB.copy()
     tg.pp_adatas(ad_sc, ad_sp, genes=None)
     ad_map = tg.map_cells_to_space(ad_sc, ad_sp, density_prior='uniform', num_epochs=500)
     pi = ad_map.X/ad_map.X.sum()
+    print("Tangram running time is %s seconds" % (time.time() - start_time))
 
     print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
     plot_slice_pairwise_alignment(sliceA, sliceB, pi)
