@@ -77,6 +77,28 @@ def compute_alignment_ari(sliceA, sliceB, pi):
     return ari
 
 
+def compute_alignment_ari_B2A(sliceA, sliceB, pi):
+    mapped_clusters = []
+    for i in range(pi.shape[0]):
+        mapping = pi[i, :]
+        if np.sum(mapping) > 0:
+            j = np.argmax(mapping)
+            mapped_clusters.append(sliceB.obs['layer_guess_reordered'][j])
+        else:
+            mapped_clusters.append("NULL")
+
+    assert len(sliceA.obs['layer_guess_reordered']) == len(mapped_clusters)
+    true_clusters_mapped_region = []
+    mapped_clusters_mapped_region = []
+    for i in range(len(sliceA.obs['layer_guess_reordered'])):
+        if mapped_clusters[i] != "NULL":
+            true_clusters_mapped_region.append(sliceA.obs['layer_guess_reordered'][i])
+            mapped_clusters_mapped_region.append(mapped_clusters[i])
+    
+    ari = sklearn.metrics.adjusted_rand_score(true_clusters_mapped_region, mapped_clusters_mapped_region)
+    return ari
+
+
 
 """
 Code for visualizing alignment
@@ -174,6 +196,70 @@ def plot_slice_pairwise_alignment_tumor(slice1, slice2, pi, thr=1 - 1e-8, alpha=
     plt.scatter(coordinates1[:, 0], coordinates1[:, 1], linewidth=0, s=100, marker=".", color=list(slice1.obs['tumor'].astype('str').map(tumor_color_map)))
     plt.scatter(coordinates2[:, 0] + offset, coordinates2[:, 1], linewidth=0, s=100, marker=".", color=list(slice2.obs['tumor'].astype('str').map(tumor_color_map)))
     plt.gca().invert_yaxis()
+    plt.axis('off')
+    if save: plt.savefig("/Users/ronzeira/Documents/GitHub/paste/paste_output/DLPFC/figs/{}.pdf".format(name),
+                         bbox_inches='tight')
+    plt.show()
+
+
+cell_to_color_map = {}
+cell_to_color_map['neuroplacodal cell'] = sns.color_palette('tab20')[0]
+cell_to_color_map['paraxial cell'] = sns.color_palette('tab20')[1]
+cell_to_color_map['native cell'] = sns.color_palette('tab20')[2]
+cell_to_color_map['premigratory neural crest cell'] = sns.color_palette('tab20')[3]
+cell_to_color_map['midbrain dopaminergic neuron'] = sns.color_palette('tab20')[4]
+cell_to_color_map['primitive red blood cell'] = sns.color_palette('tab20')[5]
+cell_to_color_map['mesodermal cell'] = sns.color_palette('tab20')[6]
+cell_to_color_map['neurectodermal cell'] = sns.color_palette('tab20')[7] # E8.5 specific cell type
+cell_to_color_map['endodermal cell'] = sns.color_palette('tab20')[8]
+cell_to_color_map['spinal cord interneuron'] = sns.color_palette('tab20')[9]
+cell_to_color_map['heart valve cell'] = sns.color_palette('tab20')[10]
+cell_to_color_map['surface ectodermal cell'] = sns.color_palette('tab20')[11]
+cell_to_color_map['hemangioblast'] = sns.color_palette('tab20')[12]
+cell_to_color_map['gut endothelial cell'] = sns.color_palette('tab20')[13]
+cell_to_color_map['splanchnic mesodermal cell'] = sns.color_palette('tab20')[14]
+cell_to_color_map['notochordal cell'] = sns.color_palette('tab20')[15] # E9.5 specific cell type
+def plot_slice_pairwise_alignment_mouse(slice1, slice2, pi, thr=1 - 1e-8, alpha=0.05, top=1000, name='', save=False,
+                                  weight_alpha=False):
+    coordinates1, coordinates2 = slice1.obsm['spatial'], slice2.obsm['spatial']
+    offset = (coordinates1[:, 0].max() - coordinates2[:, 0].min()) * 1.1
+    temp = np.zeros(coordinates2.shape)
+    temp[:, 0] = offset
+    plt.figure(figsize=(20, 10))
+    plot2D_samples_mat(coordinates1, coordinates2 + temp, pi, thr=thr, c='k', alpha=alpha, top=top,
+                       weight_alpha=weight_alpha)
+    plt.scatter(coordinates1[:, 0], coordinates1[:, 1], linewidth=0, s=100, marker=".", color=list(slice1.obs['cell_type'].astype('str').map(cell_to_color_map)))
+    plt.scatter(coordinates2[:, 0] + offset, coordinates2[:, 1], linewidth=0, s=100, marker=".", color=list(slice2.obs['cell_type'].astype('str').map(cell_to_color_map)))
+    plt.gca().invert_yaxis()
+    plt.axis('off')
+    if save: plt.savefig("/Users/ronzeira/Documents/GitHub/paste/paste_output/DLPFC/figs/{}.pdf".format(name),
+                         bbox_inches='tight')
+    plt.show()
+
+
+cell_to_color_map = {}
+cell_to_color_map['CNS'] = sns.color_palette('tab20')[0]
+cell_to_color_map['epidermis'] = sns.color_palette('tab20')[1]
+cell_to_color_map['carcass'] = sns.color_palette('tab20')[2]
+cell_to_color_map['trachea'] = sns.color_palette('tab20')[3]
+cell_to_color_map['muscle'] = sns.color_palette('tab20')[4]
+cell_to_color_map['midgut'] = sns.color_palette('tab20')[5]
+cell_to_color_map['fat body'] = sns.color_palette('tab20')[6]
+cell_to_color_map['amnioserosa'] = sns.color_palette('tab20')[7] 
+cell_to_color_map['foregut'] = sns.color_palette('tab20')[8]
+cell_to_color_map['salivary gland'] = sns.color_palette('tab20')[9]
+def plot_slice_pairwise_alignment_drosophila(slice1, slice2, pi, thr=1 - 1e-8, alpha=0.05, top=1000, name='', save=False,
+                                  weight_alpha=False):
+    coordinates1, coordinates2 = slice1.obsm['spatial'], slice2.obsm['spatial']
+    offset = (coordinates1[:, 0].max() - coordinates2[:, 0].min()) * 1.1
+    temp = np.zeros(coordinates2.shape)
+    temp[:, 0] = offset
+    plt.figure(figsize=(20, 10))
+    plot2D_samples_mat(coordinates1, coordinates2 + temp, pi, thr=thr, c='k', alpha=alpha, top=top,
+                       weight_alpha=weight_alpha)
+    plt.scatter(coordinates1[:, 0], coordinates1[:, 1], linewidth=0, s=200, marker=".", color=list(slice1.obs['annotation'].astype('str').map(cell_to_color_map)))
+    plt.scatter(coordinates2[:, 0] + offset, coordinates2[:, 1], linewidth=0, s=200, marker=".", color=list(slice2.obs['annotation'].astype('str').map(cell_to_color_map)))
+    # plt.gca().invert_yaxis()
     plt.axis('off')
     if save: plt.savefig("/Users/ronzeira/Documents/GitHub/paste/paste_output/DLPFC/figs/{}.pdf".format(name),
                          bbox_inches='tight')

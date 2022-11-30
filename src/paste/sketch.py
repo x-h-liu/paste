@@ -2,6 +2,7 @@ import numpy
 import numpy as np
 from scipy.stats import entropy
 import scanpy as sc
+import gif
 # from src.paste.helper import to_dense_array, extract_data_matrix
 # from helper import to_dense_array, extract_data_matrix
 # from src.paste.fractional_align import partial_pairwise_align

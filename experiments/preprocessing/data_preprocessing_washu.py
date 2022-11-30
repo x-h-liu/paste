@@ -100,7 +100,8 @@ def read_HT_with_image(gene_expression_file, location_file, tumor_annotation_fil
     tumor_annotation_df = pd.read_csv(tumor_annotation_file, sep='\t', header=0, index_col=0)
     tumor_annotation = []
     for spotname in adata.obs.index:
-        tumor_annotation.append(tumor_annotation_df.loc[spotname]['annotation'])
+        # tumor_annotation.append(tumor_annotation_df.loc[spotname]['annotation'])
+        tumor_annotation.append(tumor_annotation_df.loc[spotname]['clone label'])
     adata.obs['tumor'] = tumor_annotation
 
     # find pixel locations of each spot in the image, as well as spot size
@@ -146,6 +147,56 @@ def read_HT_with_image(gene_expression_file, location_file, tumor_annotation_fil
     return adata
 
 
+def read_HT206(gene_expression_file, location_file, annotation_file, image_file, scalefactor_json_file, fullres=False):
+    adata = sc.read_10x_h5(gene_expression_file)
+    adata.var_names_make_unique()
+
+    all_locations = pd.read_csv(filepath_or_buffer=location_file, header=None, index_col=0, usecols=[0, 1, 4, 5])
+    tissue_locations = all_locations[all_locations[1] == 1]
+    spatial = []
+    for spotname in adata.obs.index:
+        spatial.append([tissue_locations.loc[spotname][5], tissue_locations.loc[spotname][4]])
+    adata.obsm['spatial'] = np.array(spatial)
+    sc.pp.calculate_qc_metrics(adata, inplace=True)
+
+    gene_expression_matrix = adata.X
+    spot_umi_counts = np.sum(gene_expression_matrix, axis=1)
+    adata.obs['sum_umi'] = spot_umi_counts
+
+    # find pixel locations of each spot in the image, as well as spot size
+    scalefactor_f = open(scalefactor_json_file)
+    scalefactor = json.load(scalefactor_f)
+    if fullres:
+        spot_locations = adata.obsm['spatial']
+        spot_radius = round(scalefactor['spot_diameter_fullres'] / 2.0)
+    else:
+        spot_locations = adata.obsm['spatial'] * scalefactor['tissue_hires_scalef']
+        spot_radius = round(scalefactor['spot_diameter_fullres'] * scalefactor['tissue_hires_scalef'] / 2.0)
+    scalefactor_f.close()
+
+    # image stuff
+    img = cv2.imread(image_file)
+    rgb = []
+    for i in range(adata.n_obs):
+        x, y = round(spot_locations[i][0]), round(spot_locations[i][1])
+        spot_mask = np.zeros((img.shape[0], img.shape[1]), np.uint8)
+        cv2.circle(spot_mask, (x, y), radius=spot_radius, color=(255, 255, 255), thickness=-1)
+        rgb.append(cv2.mean(img, spot_mask)[::-1][1:])
+    adata.obsm['rgb'] = np.array(rgb)
+
+    tumor_annotation_df = pd.read_csv(annotation_file, sep='\t', header=0, index_col=0)
+    tumor_annotation = []
+    for spotname in adata.obs.index:
+        tumor_annotation.append(tumor_annotation_df.loc[spotname]['clone label'])
+    adata.obs['tumor'] = tumor_annotation
+
+    return adata
+
+
+
+
+
+
 if __name__ == "__main__":
     # # HT 225 slice 1
     # # gene_expression_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice1/filtered_feature_bc_matrix.h5"
@@ -163,12 +214,12 @@ if __name__ == "__main__":
     # # gene_expression_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice4/filtered_feature_bc_matrix.h5"
     # # location_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice4/spatial/tissue_positions_list.csv"
 
-    # HT 225 slice 5
-    gene_expression_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/filtered_feature_bc_matrix.h5"
-    location_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/tissue_positions_list.csv"
-    tumor_annotation_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/HT225C1-Th1_U5_ST.metadata.tsv"
-    image_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/tissue_hires_image.png"
-    scalefactor_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/scalefactors_json.json"
+    # # HT 225 slice 5
+    # gene_expression_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/filtered_feature_bc_matrix.h5"
+    # location_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/tissue_positions_list.csv"
+    # tumor_annotation_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/HT225C1-Th1_U5_ST.metadata.tsv"
+    # image_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/tissue_hires_image.png"
+    # scalefactor_file = "/n/fs/ragr-data/datasets/DingLab/HT225/slice5/spatial/scalefactors_json.json"
 
     # # HT 112
     # gene_expression_file = "/n/fs/ragr-data/datasets/DingLab/HT112/U2/filtered_feature_bc_matrix.h5"
@@ -198,6 +249,11 @@ if __name__ == "__main__":
     # print(tumor_divide)
     # print(tumor_divide.loc['CAAGCAACGTCGGAGT-1']['annotation'])
 
-    read_HT_with_image(gene_expression_file, location_file, tumor_annotation_file, image_file, scalefactor_file, fullres=False)
+    # read_HT_with_image(gene_expression_file, location_file, tumor_annotation_file, image_file, scalefactor_file, fullres=False)
 
+    tumor_clone_file = "/n/fs/ragr-data/datasets/DingLab/HT225/HT225C1_U1/bafonlyhmrf_03/clone_label.tsv"
+    tumor_clone = pd.read_csv(tumor_clone_file, sep='\t', header=0, index_col=0)
+    print(tumor_clone)
+    print(tumor_clone.loc['CAACTATATCGAATGC-1']['clone label'])
 
+    pass

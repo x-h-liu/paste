@@ -1,7 +1,7 @@
 import numpy as np
 import ot
 from .helper import kl_divergence, intersect, to_dense_array, extract_data_matrix, generalized_kl_divergence, \
-    high_umi_gene_distance, pca_distance, glmpca_distance, glmpca_distance2
+    high_umi_gene_distance, glmpca_distance
 from scipy.spatial import distance
 import random
 import src.paste.PASTE as paste
@@ -96,31 +96,6 @@ def fgwgrad_partial(alpha, M, C1, C2, T, loss_fun='square_loss'):
     return (1 - alpha) * M + alpha * gwgrad_partial(C1, C2, T, loss_fun)
 
 
-def initialization(M, p, q, m):
-    index_list = list(range(len(p)))
-    random.shuffle(index_list)
-    pi = np.zeros((len(p), len(q)))
-    while m > 0:
-        if len(index_list) == 0:
-            return pi
-        source_idx = index_list.pop()
-        dest_idx = np.argmin(M[source_idx])
-        pi[source_idx][dest_idx] = min([p[source_idx], q[dest_idx], m])
-        m -= pi[source_idx][dest_idx]
-
-
-
-    print("IN INITIALIZATION")
-    print(np.sum(np.dot(pi.T, np.ones((pi.shape[0],)))))
-    print(np.max(np.dot(pi.T, np.ones((pi.shape[0],)))))
-    print("IN INITIALIZATION")
-
-
-
-
-    return pi
-
-
 def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, loss_fun='square_loss', armijo=False, log=False, verbose=False, numItermax=1000, tol=1e-7, stopThr=1e-9, stopThr2=1e-9):
     if m is None:
         # m = np.min((np.sum(p), np.sum(q)))
@@ -133,8 +108,6 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
                          " equal to min(|p|_1, |q|_1).")
 
     if G0 is None:
-        # G0 = initialization(M, p, q, m)
-        # return G0, {"partial_fgw_cost":0}
         G0 = np.outer(p, q)
 
     nb_dummies = 1
@@ -167,7 +140,6 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
 
         Gc, logemd = ot.lp.emd(p_extended, q_extended, gradF_emd, numItermax=1000000, log=True)
         if logemd['warning'] is not None:
-            # print("!!!!!!" + logemd['warning'])
             raise ValueError("Error in the EMD resolution: try to increase the"
                              " number of dummy points")
 
@@ -232,8 +204,8 @@ def partial_fused_gromov_wasserstein(M, C1, C2, p, q, alpha, m=None, G0=None, lo
         return G0[:len(p), :len(q)]
 
 
-def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, dissimilarity='kl', use_rep=None, G_init=None, a_distribution=None,
-                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, matched_spots=None, **kwargs):
+def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, dissimilarity='glmpca', use_rep=None, G_init=None, a_distribution=None,
+                   b_distribution=None, norm=False, numItermax=200, return_obj=False, verbose=False, **kwargs):
     """
     Calculates and returns optimal alignment of two slices.
 
@@ -280,14 +252,8 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, diss
         M = kl_divergence(s_A, s_B)
     elif dissimilarity.lower() == 'selection_kl':
         M = high_umi_gene_distance(A_X, B_X, 2000)
-    elif dissimilarity.lower() == "pca":
-        #M = pca_distance(sliceA, sliceB, 2000, 100)
-        M = pca_distance(sliceA, sliceB, 2000, 20)
     elif dissimilarity.lower() == 'glmpca':
-        #M = glmpca_distance(A_X, B_X, latent_dim=20, filter=True)
-        M = glmpca_distance(A_X, B_X, latent_dim=50, filter=True)
-    elif dissimilarity.lower() == 'glmpca2':
-        M = glmpca_distance2(sliceA, sliceB, latent_dim=20, use_rep=use_rep)
+        M = glmpca_distance(A_X, B_X, latent_dim=50, filter=True, verbose=verbose)
     else:
         print("ERROR")
         exit(1)
@@ -319,36 +285,11 @@ def partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=None, armijo=False, diss
         """
         Code for normalizing distance matrix ends
         """
-    # print(M)
-    # print(D_A)
-    # print(D_B)
-    # print(M.min())
-    # print(M.max())
-    # print(D_A.max())
-    # print(D_B.max())
-    # exit()
-
-    # Run OT
-    # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
-    #                                                   numItermax=numItermax, verbose=verbose)
     pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
-
-    if matched_spots:
-        true_pi = np.zeros(pi.shape)
-        for (source_idx, dest_idx) in matched_spots:
-            true_pi[source_idx][dest_idx] = min([a[source_idx], b[dest_idx]])
-        true_pi_value = fgwloss_partial(alpha, M, D_A, D_B, true_pi, loss_fun='square_loss')
-        print("Objective cost of the true alignment is %f" % true_pi_value)
-        accuracy = 0
-        for matched_spot in matched_spots:
-            accuracy += true_pi[matched_spot[0]][matched_spot[1]]
-        print("Accuracy of the true alignment is %f" % accuracy)
 
     if return_obj:
         return pi, log['partial_fgw_cost']
     return pi
-
-
 
 
 def partial_pairwise_align_given_cost_matrix(sliceA, sliceB, M, alpha=0.1, m=None, armijo=False, G_init=None, a_distribution=None,
@@ -479,7 +420,7 @@ def partial_pairwise_align_RGB_only(sliceA, sliceB, alpha=0.1, m=None, armijo=Fa
 
 
 def partial_pairwise_align_expression_and_rgb(sliceA, sliceB, alpha=0.1, m=None, armijo=False, dissimilarity='glmpca', use_rep=None, G_init=None, a_distribution=None,
-                   b_distribution=None, norm=True, return_obj=False, verbose=False, matched_spots=None, **kwargs):
+                   b_distribution=None, norm=True, return_obj=False, verbose=False, **kwargs):
     # subset for common genes
     common_genes = intersect(sliceA.var.index, sliceB.var.index)
     sliceA = sliceA[:, common_genes]
@@ -499,7 +440,7 @@ def partial_pairwise_align_expression_and_rgb(sliceA, sliceB, alpha=0.1, m=None,
         s_B = B_X + 0.01
         M_exp = kl_divergence(s_A, s_B)
     elif dissimilarity.lower() == 'glmpca':
-        M_exp = glmpca_distance(A_X, B_X, latent_dim=50, filter=True)
+        M_exp = glmpca_distance(A_X, B_X, latent_dim=50, filter=True, verbose=verbose)
     else:
         print("ERROR")
         exit(1)
@@ -547,17 +488,6 @@ def partial_pairwise_align_expression_and_rgb(sliceA, sliceB, alpha=0.1, m=None,
 
     # Run OT
     pi, log = partial_fused_gromov_wasserstein(M, D_A, D_B, a, b, alpha=alpha, m=m, G0=G_init, loss_fun='square_loss', armijo=armijo, log=True, verbose=verbose)
-
-    if matched_spots:
-        true_pi = np.zeros(pi.shape)
-        for (source_idx, dest_idx) in matched_spots:
-            true_pi[source_idx][dest_idx] = min([a[source_idx], b[dest_idx]])
-        true_pi_value = fgwloss_partial(alpha, M, D_A, D_B, true_pi, loss_fun='square_loss')
-        print("Objective cost of the true alignment is %f" % true_pi_value)
-        accuracy = 0
-        for matched_spot in matched_spots:
-            accuracy += true_pi[matched_spot[0]][matched_spot[1]]
-        print("Accuracy of the true alignment is %f" % accuracy)
 
     if return_obj:
         return pi, log['partial_fgw_cost']

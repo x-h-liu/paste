@@ -143,7 +143,7 @@ def pairwise_align(sliceA, sliceB, alpha = 0.1, dissimilarity='kl', use_rep = No
     # Run OT
     if G_init is None:
         pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha=alpha, log=True,
-                                                      numItermax=numItermax, verbose=verbose, numItermaxEmd=500000)
+                                                      numItermax=numItermax, verbose=verbose, numItermaxEmd=1000000)
         # pi, logw = ot.gromov.fused_gromov_wasserstein(M, D_A, D_B, a, b, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose, numItermaxEmd=1000000)
     else:
         pi, logw = my_fused_gromov_wasserstein(M, D_A, D_B, a, b, G_init = G_init, loss_fun='square_loss', alpha= alpha, log=True, numItermax=numItermax,verbose=verbose)

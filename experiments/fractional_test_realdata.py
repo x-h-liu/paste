@@ -1,7 +1,8 @@
 from src.paste.fractional_align import partial_pairwise_align
-from experiments.helper import plot_slice, plot_slice_pairwise_alignment_mappingcolor, plot_slice_pairwise_alignment, compute_alignment_ari, plot_slices_overlap
+from experiments.helper import plot_slice, plot_slice_pairwise_alignment_mappingcolor, plot_slice_pairwise_alignment, compute_alignment_ari, compute_alignment_ari_B2A, plot_slices_overlap
 from src.paste.visualization import partial_stack_slices_pairwise, stack_slices_pairwise
 import src.paste.PASTE as paste
+from src.paste.helper import to_dense_array, extract_data_matrix
 
 
 import scanpy as sc
@@ -9,6 +10,8 @@ import numpy as np
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
+from pamona import Pamona
+import tangram as tg
 
 
 def mapping_accuracy(labels1, labels2, pi):
@@ -84,7 +87,7 @@ def max_accuracy(labels1, labels2):
 
 
 
-def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m, B2A=False):
     sliceA = sc.read_h5ad(sliceA_filename)
     sliceB = sc.read_h5ad(sliceB_filename)
     plot_slice(sliceA)
@@ -93,7 +96,10 @@ def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
     pi, log = partial_pairwise_align(sliceA, sliceB, alpha=0.1, m=m, armijo=False, dissimilarity='glmpca', norm=True, return_obj=True, verbose=True)
     print(pi.shape)
     print("Total mass transported is: " + str(np.sum(pi)))
-    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+    if B2A:
+        print("ARI is: " + str(compute_alignment_ari_B2A(sliceA, sliceB, pi)))
+    else:
+        print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
 
     going_out = np.sum(pi, axis=1) > 0
     coming_in = np.sum(pi, axis=0) > 0
@@ -101,6 +107,9 @@ def partial_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
     coming_in_part = sliceB[sliceB.obs.index[coming_in]]
     plot_slice(going_out_part)
     plot_slice(coming_in_part)
+    print(going_out_part.shape[0] / sliceA.shape[0])
+    print(coming_in_part.shape[0] / sliceB.shape[0])
+
 
     # Alignment visualization
     source_split = []
@@ -146,3 +155,78 @@ def full_alignment_dlpfc(sliceA_filename, sliceB_filename):
     plot_slices_overlap(new_slices)
 
     plt.show()
+
+
+def pamona_alignment_dlpfc(sliceA_filename, sliceB_filename, m):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+    A_spotnum = sliceA.shape[0]
+    B_spotnum = sliceB.shape[0]
+    n_shared = int(max(A_spotnum, B_spotnum) * m)
+    A_X, B_X = to_dense_array(extract_data_matrix(sliceA, None)), to_dense_array(extract_data_matrix(sliceB, None))
+
+    Pa = Pamona.Pamona(n_shared=[n_shared], output_dim=5)
+    integrated_data, T = Pa.run_Pamona([A_X, B_X])
+    pi = T[0][:A_spotnum, :B_spotnum]
+    # n_shared_largest_value = np.partition(pi.flatten(), -n_shared)[-n_shared]
+    # pi[pi < n_shared_largest_value] = 0
+
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+    going_out = np.sum(pi, axis=1) > 0
+    coming_in = np.sum(pi, axis=0) > 0
+    going_out_part = sliceA[sliceA.obs.index[going_out]]
+    coming_in_part = sliceB[sliceB.obs.index[coming_in]]
+    plot_slice(going_out_part)
+    plot_slice(coming_in_part)
+
+    # Alignment visualization
+    source_split = []
+    source_mass = np.sum(pi, axis=1)
+    for i in range(len(source_mass)):
+        if source_mass[i] > 0:
+            source_split.append("true")
+        else:
+            source_split.append("false")
+    sliceA.obs["aligned"] = source_split
+    target_split = []
+    target_mass = np.sum(pi, axis=0)
+    for i in range(len(target_mass)):
+        if target_mass[i] > 0:
+            target_split.append("true")
+        else:
+            target_split.append("false")
+    sliceB.obs["aligned"] = target_split
+    plot_slice_pairwise_alignment_mappingcolor(sliceA, sliceB, pi)
+    plot_slice_pairwise_alignment(sliceA, sliceB, pi)
+
+    # Stacking
+    new_slices = partial_stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()
+
+
+
+def tangram_alignment_dlpfc(sliceA_filename, sliceB_filename):
+    sliceA = sc.read_h5ad(sliceA_filename)
+    sliceB = sc.read_h5ad(sliceB_filename)
+
+    ad_sc = sliceA.copy()
+    ad_sp = sliceB.copy()
+    tg.pp_adatas(ad_sc, ad_sp, genes=None)
+    ad_map = tg.map_cells_to_space(ad_sc, ad_sp, density_prior='uniform', num_epochs=500)
+    pi = ad_map.X/ad_map.X.sum()
+
+    print("ARI is: " + str(compute_alignment_ari(sliceA, sliceB, pi)))
+    plot_slice_pairwise_alignment(sliceA, sliceB, pi)
+
+    """
+    stacking
+    """
+    new_slices = stack_slices_pairwise([sliceA, sliceB], [pi])
+    plot_slices_overlap(new_slices)
+
+    plt.show()
+
+
+

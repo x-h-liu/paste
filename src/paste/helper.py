@@ -63,12 +63,13 @@ def generalized_kl_divergence(X, Y):
     return np.asarray(D)
 
 
-def glmpca_distance(X, Y, latent_dim=20, filter=True):
+def glmpca_distance(X, Y, latent_dim=50, filter=True, verbose=False):
     """
     param: X - np array with dim (n_samples by n_features)
     param: Y - np array with dim (m_samples by n_features)
     param: latent_dim - number of latent dimensions in glm-pca
     param: filter - whether to first select genes with highest UMI counts
+    param: verbose - glmpca is verbose if True.
     """
     assert X.shape[1] == Y.shape[1], "X and Y do not have the same number of features."
 
@@ -79,49 +80,13 @@ def glmpca_distance(X, Y, latent_dim=20, filter=True):
         joint_matrix = joint_matrix[:, top_indices]
 
     print("Starting GLM-PCA...")
-    res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=True)
+    res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=verbose)
     #res = glmpca(joint_matrix.T, latent_dim, fam='nb', penalty=1, verbose=True)
     reduced_joint_matrix = res["factors"]
     print("GLM-PCA finished with joint matrix shape " + str(reduced_joint_matrix.shape))
 
     X = reduced_joint_matrix[:X.shape[0], :]
     Y = reduced_joint_matrix[X.shape[0]:, :]
-    return distance.cdist(X, Y)
-
-
-def glmpca_distance2(sliceA, sliceB, latent_dim=20, use_rep=None):
-    joint_adata = ad.concat([sliceA, sliceB])
-    sc.pp.normalize_total(joint_adata, inplace=True)
-    sc.pp.log1p(joint_adata)
-    sc.pp.highly_variable_genes(joint_adata, flavor="seurat", n_top_genes=2000, inplace=True, subset=True)
-
-    sliceA = sliceA[:, joint_adata.var.index]
-    sliceB = sliceB[:, joint_adata.var.index]
-    X, Y = to_dense_array(extract_data_matrix(sliceA, use_rep)), to_dense_array(extract_data_matrix(sliceB, use_rep))
-    joint_matrix = np.vstack((X, Y))
-    res = glmpca(joint_matrix.T, latent_dim, penalty=1, verbose=True)
-    reduced_joint_matrix = res["factors"]
-    X = reduced_joint_matrix[:sliceA.shape[0], :]
-    Y = reduced_joint_matrix[sliceA.shape[0]:, :]
-    return distance.cdist(X, Y)
-
-
-def pca_distance(sliceA, sliceB, n, latent_dim):
-    # TODO
-    print(sliceA.shape)
-    print(sliceB.shape)
-    joint_adata = ad.concat([sliceA, sliceB])
-    print(joint_adata.shape)
-    sc.pp.normalize_total(joint_adata, inplace=True)
-    sc.pp.log1p(joint_adata)
-    sc.pp.highly_variable_genes(joint_adata, flavor="seurat", n_top_genes=n, inplace=True, subset=True)
-    print(joint_adata.shape)
-    sc.pp.pca(joint_adata, latent_dim)
-    joint_datamatrix = joint_adata.obsm['X_pca']
-    X = joint_datamatrix[:sliceA.shape[0], :]
-    Y = joint_datamatrix[sliceA.shape[0]:, :]
-    print(X.shape)
-    print(Y.shape)
     return distance.cdist(X, Y)
 
 
